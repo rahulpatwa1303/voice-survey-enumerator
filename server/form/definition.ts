@@ -1,8 +1,13 @@
 // A form definition the interview runs over. Hand-built from forms/maternal_followup_v1.xlsx
 // for week 1; week 2 replaces this with a parser so any XLSForm produces the same shape.
 
-export type Lang = 'en' | 'hi' | 'es';
-export type Labels = Record<Lang, string>;
+export type Lang = string;               // ISO-ish code; form decides which exist
+export type Labels = Record<string, string>;
+
+/** Pick a label in the requested language, falling back to en, then any. */
+export function pickLabel(labels: Labels, lang: string): string {
+  return labels[lang] ?? labels.en ?? labels[Object.keys(labels)[0]] ?? '';
+}
 export type Answers = Record<string, unknown>;
 
 export type Choice = { name: string; label: Labels };
@@ -19,6 +24,8 @@ export type Question = {
   constraint?: { check: (v: unknown) => boolean; message: Labels };
   /** Not sent to Kobo (e.g. consent). */
   local?: boolean;
+  /** Set when the XLSForm type isn't voice-supported; enumerator fills manually. */
+  unsupported?: string;
 };
 
 export type FormDefinition = {
@@ -99,3 +106,26 @@ export const demoForm: FormDefinition = {
 };
 
 export const langName: Record<Lang, string> = { en: 'English', hi: 'Hindi', es: 'Spanish' };
+
+
+/** A recording-consent question in whatever of our known languages apply. Always
+ *  local (never submitted). Prepended to any form that doesn't already start with it. */
+export function consentQuestion(): Question {
+  return {
+    name: 'consent', type: 'select_one', required: true, local: true,
+    choices: [
+      { name: 'yes', label: { en: 'Yes', hi: 'हाँ', es: 'Sí' } },
+      { name: 'no', label: { en: 'No', hi: 'नहीं', es: 'No' } },
+    ],
+    label: {
+      en: 'This conversation is recorded and written down for the survey. Is that okay with you?',
+      hi: 'यह बातचीत सर्वे के लिए रिकॉर्ड और लिखी जाएगी। क्या आप सहमत हैं?',
+      es: 'Esta conversación se graba y se anota para la encuesta. ¿Está de acuerdo?',
+    },
+  };
+}
+
+export function ensureConsent(form: FormDefinition): FormDefinition {
+  if (form.questions[0]?.name === 'consent') return form;
+  return { ...form, questions: [consentQuestion(), ...form.questions] };
+}

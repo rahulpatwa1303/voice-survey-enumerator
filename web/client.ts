@@ -9,12 +9,18 @@ type Msg =
 
 const $ = (id: string) => document.getElementById(id)!;
 const log = (t: string, cls = '') => { const d = document.createElement('div'); d.className = 'line ' + cls; d.textContent = t; $('transcript').append(d); $('transcript').scrollTop = 1e9; };
+function downloadJSON(obj: unknown) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'survey-record.json'; a.click(); URL.revokeObjectURL(a.href);
+}
 const b64ToBuf = (b64: string) => { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
 const bufToB64 = (buf: ArrayBuffer) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
 
 let ws: WebSocket, ctx: AudioContext, capture: AudioWorkletNode, playback: AudioWorkletNode, micOn = false, holding = false;
 const lat: number[] = [];
 let turnEndedAt = 0; // performance.now() when respondent released the button
+let uploadedFormId: string | null = null;
 let awaitingAudio = false;
 
 async function start() {
@@ -35,7 +41,7 @@ async function start() {
   playback.connect(ctx.destination);
 
   const lang = (document.getElementById('lang') as HTMLSelectElement).value;
-  ws.send(JSON.stringify({ type: 'start', lang }));
+  ws.send(JSON.stringify({ type: 'start', lang, formId: uploadedFormId }));
   $('status').textContent = 'connecting to agent…';
   $('start').setAttribute('disabled', 'true');
   (document.getElementById('lang') as HTMLSelectElement).setAttribute('disabled', 'true');
@@ -60,7 +66,14 @@ function onMsg(m: Msg) {
     case 'user': $('partial').textContent = ''; log('Respondent: ' + m.text, 'user'); break;
     case 'agent': log('Agent: ' + m.text, 'agent'); break;
     case 'answer': paintAnswer(m.name, m.display); break;
-    case 'submit': log(m.ok ? '✓ Submitted to Kobo (' + m.instanceId + ')' : '✗ Submit failed: ' + m.message, m.ok ? 'ok' : 'err'); $('status').textContent = m.ok ? 'done — record in Kobo' : 'submit failed'; break;
+    case 'submit': {
+      const anyM = m as any;
+      if (anyM.record) downloadJSON(anyM.record);
+      const msg = anyM.instanceId ? '✓ Submitted to Kobo (' + anyM.instanceId + ')' : anyM.note ? '✓ ' + anyM.note : (m.ok ? '✓ Recorded' : '✗ Submit failed: ' + anyM.message);
+      log(msg, m.ok ? 'ok' : 'err');
+      $('status').textContent = m.ok ? 'done' : 'submit failed';
+      break;
+    }
     case 'closed': $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
     case 'latency': break; // server-side breakdown still logged on the server
     case 'error': case 'fatal': log('Error: ' + m.message, 'err'); break;
@@ -105,4 +118,20 @@ function stop() {
   (document.getElementById('lang') as HTMLSelectElement).removeAttribute('disabled');
 }
 $('stop').addEventListener('click', stop);
+async function onUpload(file: File) {
+  $('status').textContent = 'parsing form…';
+  const buf = await file.arrayBuffer();
+  const res = await fetch('/upload', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf });
+  const data = await res.json();
+  if (!res.ok) { log('Upload failed: ' + (data.error || res.status), 'err'); $('status').textContent = 'upload failed'; return; }
+  uploadedFormId = data.id;
+  const sel = document.getElementById('lang') as HTMLSelectElement;
+  sel.innerHTML = (data.languages as string[]).map((l) => `<option value="${l}">${l}</option>`).join('');
+  $('status').textContent = `loaded "${data.title}" — ${data.questions} questions, languages: ${(data.languages as string[]).join(', ')}`;
+  log(`Loaded form "${data.title}" (${data.questions} questions).`, 'ok');
+  for (const lim of data.limitations as string[]) log('⚠ ' + lim, 'err');
+}
+(document.getElementById('file') as HTMLInputElement).addEventListener('change', (e) => {
+  const f = (e.target as HTMLInputElement).files?.[0]; if (f) onUpload(f).catch((err) => log('Upload error: ' + err.message, 'err'));
+});
 $('start').addEventListener('click', () => start().catch((e) => log('Start failed: ' + e.message, 'err')));

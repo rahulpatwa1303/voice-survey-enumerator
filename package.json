@@ -9,12 +9,14 @@
     "dev:web": "vite --host",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "smoke": "tsx scripts/smoke.ts",
-    "kobo:test": "./scripts/kobo_submit.sh"
+    "kobo:test": "./scripts/kobo_submit.sh",
+    "smoke:parse": "tsx scripts/smoke-parse.ts"
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.2",
     "fastify": "^5.2.1",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

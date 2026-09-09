@@ -8,11 +8,20 @@
 import type { Lang } from './form/definition.js';
 
 type Spoken = { say: string; voice: string; understand?: string };
-const PROFILE: Record<Lang, Spoken> = {
+const NAMES: Record<string, string> = { hi: 'Hindi', ar: 'Arabic', ja: 'Japanese', zh: 'Mandarin', vi: 'Vietnamese', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese' };
+const SPOKEN: Record<string, Spoken> = {
   en: { say: 'English', voice: 'mary' },
   es: { say: 'Spanish', voice: 'lola' },
-  hi: { say: 'simple, clear English', voice: 'mary', understand: 'Hindi' },
+  fr: { say: 'French', voice: 'estelle' },
+  de: { say: 'German', voice: 'juergen' },
+  it: { say: 'Italian', voice: 'giovanni' },
+  pt: { say: 'Portuguese', voice: 'rafael' },
 };
+// The Voice Agent API SPEAKS these 6. For any other language, understand it but reply in English.
+function profile(lang: Lang): Spoken {
+  if (SPOKEN[lang]) return SPOKEN[lang];
+  return { say: 'simple, clear English', voice: 'mary', understand: NAMES[lang] ?? 'their language' };
+}
 
 export const tools = [
   {
@@ -40,7 +49,7 @@ export const tools = [
 ] as const;
 
 export function systemPrompt(lang: Lang, today: string): string {
-  const p = PROFILE[lang];
+  const p = profile(lang);
   return [
     `You are a warm, patient community health worker running a short survey. You sound like a real person, not a form. Speak ${p.say}.`,
     p.understand ? `The respondent speaks ${p.understand}. Understand them fully, but always reply in ${p.say}.`
@@ -83,7 +92,7 @@ export function sessionUpdate(lang: Lang) {
         // need only a short silence confirmation. This is the main felt-latency lever.
         turn_detection: { vad_threshold: 0.3, min_silence: 200, max_silence: 1000, interrupt_response: true },
       },
-      output: { voice: PROFILE[lang].voice, format: { encoding: 'audio/pcm' } },
+      output: { voice: profile(lang).voice, format: { encoding: 'audio/pcm' } },
       tools,
     },
   };
