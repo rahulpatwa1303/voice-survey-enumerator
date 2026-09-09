@@ -29,8 +29,11 @@ async function start() {
   playback = new AudioWorkletNode(ctx, 'playback');
   playback.connect(ctx.destination);
 
+  const lang = (document.getElementById('lang') as HTMLSelectElement).value;
+  ws.send(JSON.stringify({ type: 'start', lang }));
   $('status').textContent = 'connecting to agent…';
   $('start').setAttribute('disabled', 'true');
+  (document.getElementById('lang') as HTMLSelectElement).setAttribute('disabled', 'true');
 }
 
 function onMsg(m: Msg) {

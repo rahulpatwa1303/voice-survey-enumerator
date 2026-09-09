@@ -11,6 +11,7 @@ export type NextQuestion =
 /** One respondent's pass through a form: answers, skip logic, validation, read-back. */
 export class Interview {
   readonly answers: Answers = {};
+  private readonly skipped = new Set<string>();
   private confirmed = false;
 
   constructor(readonly form: FormDefinition, readonly lang: Lang) {}
@@ -23,7 +24,7 @@ export class Interview {
   next(): NextQuestion {
     for (const q of this.form.questions) {
       if (!this.isRelevant(q)) continue;
-      if (q.name in this.answers) continue;
+      if (q.name in this.answers || this.skipped.has(q.name)) continue;
       return {
         done: false,
         name: q.name,
@@ -48,12 +49,24 @@ export class Interview {
     }
 
     this.answers[name] = parsed.value;
+    this.skipped.delete(name);
     // A changed answer can change what is relevant; drop answers to questions that no longer apply.
     for (const other of this.form.questions) {
       if (other.name in this.answers && !this.isRelevant(other)) delete this.answers[other.name];
     }
     this.confirmed = false;
     return { ok: true, name, value: parsed.value, display: this.display(q, parsed.value) };
+  }
+
+  /** Skip an optional question. Only allowed when the question is not required. */
+  skip(name: string): RecordResult {
+    const q = this.form.questions.find((x) => x.name === name);
+    if (!q) return { ok: false, name, message: `Unknown question "${name}".` };
+    if (q.required !== false) return { ok: false, name, message: `"${name}" is required and cannot be skipped.` };
+    this.skipped.add(name);
+    delete this.answers[name];
+    this.confirmed = false;
+    return { ok: true, name, value: null, display: '(skipped)' };
   }
 
   /** Called from the `finish` tool after the respondent confirms the read-back. */

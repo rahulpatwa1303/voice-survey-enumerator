@@ -23,25 +23,29 @@ app.get('/health', async () => ({ ok: true, hasKey: !!AAI_KEY }));
 // mic audio; we forward audio to AAI, run tool calls against the Interview, and relay
 // AAI's audio + transcripts + form updates back to the browser.
 app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
-  const lang: Lang = 'en';
-  const iv = new Interview(demoForm, lang);
+  let lang: Lang = 'en';
+  let iv = new Interview(demoForm, lang);
   let kobo: WebSocket | null = null;
   let submitted = false;
 
   const toBrowser = (m: unknown) => { if (browser.readyState === 1) browser.send(JSON.stringify(m)); };
 
-  const greeting =
-    lang === 'en' ? 'Hello. I will ask you a few questions for a health survey.' :
-    lang === 'hi' ? 'नमस्ते। मैं आपसे एक स्वास्थ्य सर्वे के लिए कुछ सवाल पूछूँगी।' :
-    'Hola. Le haré unas preguntas para una encuesta de salud.';
-
   if (!AAI_KEY) { toBrowser({ type: 'fatal', message: 'ASSEMBLYAI_API_KEY not set on server' }); return; }
 
-  kobo = new WebSocket(AAI_WS, { headers: { Authorization: `Bearer ${AAI_KEY}` } });
+  function greetingFor(l: Lang) {
+    return l === 'hi' ? 'नमस्ते। मैं आपसे एक स्वास्थ्य सर्वे के लिए कुछ सवाल पूछूँगी।'
+         : l === 'es' ? 'Hola. Le haré unas preguntas para una encuesta de salud.'
+         : 'Hello. I will ask you a few questions for a health survey.';
+  }
 
-  kobo.on('open', () => kobo!.send(JSON.stringify(sessionUpdate(iv, lang, greeting))));
+  function openAgent() {
+    kobo = new WebSocket(AAI_WS, { headers: { Authorization: `Bearer ${AAI_KEY}` } });
+    kobo.on('open', () => kobo!.send(JSON.stringify(sessionUpdate(lang, greetingFor(lang)))));
+    wireAgent();
+  }
 
-  kobo.on('message', async (raw) => {
+  function wireAgent() {
+  kobo!.on('message', async (raw) => {
     const ev = JSON.parse(raw.toString());
     switch (ev.type) {
       case 'session.ready': toBrowser({ type: 'ready' }); break;
@@ -56,8 +60,9 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     }
   });
 
-  kobo.on('close', () => toBrowser({ type: 'closed' }));
-  kobo.on('error', (e) => { app.log.error(e); toBrowser({ type: 'error', message: 'agent connection error' }); });
+  kobo!.on('close', () => toBrowser({ type: 'closed' }));
+  kobo!.on('error', (e) => { app.log.error(e); toBrowser({ type: 'error', message: 'agent connection error' }); });
+  }
 
   async function handleTool(ev: { call_id: string; name: string; arguments: any }) {
     let result: unknown;
@@ -66,8 +71,12 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
         result = iv.next();
       } else if (ev.name === 'record_answer') {
         const r = iv.record(ev.arguments?.name, ev.arguments?.value);
-        result = r;
-        if (r.ok) toBrowser({ type: 'answer', name: r.name, value: r.value, display: r.display, answers: iv.answers });
+        if (r.ok) { toBrowser({ type: 'answer', name: r.name, value: r.value, display: r.display, answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        else result = r;
+      } else if (ev.name === 'skip_question') {
+        const r = iv.skip(ev.arguments?.name);
+        if (r.ok) { toBrowser({ type: 'answer', name: r.name, value: null, display: '(skipped)', answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        else result = r;
       } else if (ev.name === 'finish') {
         const f = iv.finish();
         result = f;
@@ -96,7 +105,11 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
 
   browser.on('message', (raw) => {
     const m = JSON.parse(raw.toString());
-    if (m.type === 'audio' && kobo?.readyState === 1) {
+    if (m.type === 'start') {
+      lang = (['en', 'hi', 'es'].includes(m.lang) ? m.lang : 'en') as Lang;
+      iv = new Interview(demoForm, lang);
+      openAgent();
+    } else if (m.type === 'audio' && kobo?.readyState === 1) {
       kobo.send(JSON.stringify({ type: 'input.audio', audio: m.data }));
     } else if (m.type === 'end' && kobo?.readyState === 1) {
       kobo.send(JSON.stringify({ type: 'session.end' }));
