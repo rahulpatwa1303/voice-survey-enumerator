@@ -4,6 +4,7 @@ type Msg =
   | { type: 'user_partial'; text: string } | { type: 'user'; text: string } | { type: 'agent'; text: string }
   | { type: 'answer'; name: string; value: unknown; display: string; answers: Record<string, unknown> }
   | { type: 'submit'; ok: boolean; instanceId?: string; message?: string }
+  | { type: 'latency'; total: number; user_to_toolcall: number|null; tool_handling: number|null; toolresult_to_reply: number|null; reply_to_audio: number|null }
   | { type: 'error' | 'fatal'; message: string };
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -12,6 +13,7 @@ const b64ToBuf = (b64: string) => { const bin = atob(b64); const u = new Uint8Ar
 const bufToB64 = (buf: ArrayBuffer) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
 
 let ws: WebSocket, ctx: AudioContext, capture: AudioWorkletNode, playback: AudioWorkletNode, micOn = false, holding = false;
+const lat: number[] = [];
 
 async function start() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
@@ -48,6 +50,12 @@ function onMsg(m: Msg) {
     case 'answer': paintAnswer(m.name, m.display); break;
     case 'submit': log(m.ok ? '✓ Submitted to Kobo (' + m.instanceId + ')' : '✗ Submit failed: ' + m.message, m.ok ? 'ok' : 'err'); $('status').textContent = m.ok ? 'done — record in Kobo' : 'submit failed'; break;
     case 'closed': $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
+    case 'latency': {
+      lat.push(m.total); const avg = Math.round(lat.reduce((a,b)=>a+b,0)/lat.length);
+      const b = `LLM→speech ${m.toolresult_to_reply ?? '—'}ms · tool ${m.tool_handling ?? 0}ms`;
+      log(`⏱ response in ${m.total}ms (avg ${avg}ms over ${lat.length}) — ${b}`, 'lat');
+      break;
+    }
     case 'error': case 'fatal': log('Error: ' + m.message, 'err'); break;
   }
 }

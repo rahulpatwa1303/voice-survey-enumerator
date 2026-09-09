@@ -27,6 +27,9 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   let iv = new Interview(demoForm, lang);
   let kobo: WebSocket | null = null;
   let submitted = false;
+  // turn-latency instrumentation
+  let userDoneAt = 0, toolCallAt = 0, toolResultAt = 0, replyStartedAt = 0, gotFirstAudio = true;
+  const ms = (a: number, b: number) => (a && b ? `${b - a}ms` : '—');
 
   const toBrowser = (m: unknown) => { if (browser.readyState === 1) browser.send(JSON.stringify(m)); };
 
@@ -43,10 +46,29 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     const ev = JSON.parse(raw.toString());
     switch (ev.type) {
       case 'session.ready': toBrowser({ type: 'ready' }); break;
-      case 'reply.audio': toBrowser({ type: 'audio', data: ev.data }); break;
+      case 'reply.audio':
+        if (!gotFirstAudio && userDoneAt) {
+          gotFirstAudio = true;
+          const total = Date.now() - userDoneAt;
+          const breakdown = {
+            total,
+            user_to_toolcall: toolCallAt ? toolCallAt - userDoneAt : null,
+            tool_handling: toolCallAt && toolResultAt ? toolResultAt - toolCallAt : null,
+            toolresult_to_reply: toolResultAt && replyStartedAt ? replyStartedAt - toolResultAt : null,
+            reply_to_audio: replyStartedAt ? Date.now() - replyStartedAt : null,
+          };
+          app.log.info({ latency: breakdown }, 'turn latency');
+          toBrowser({ type: 'latency', ...breakdown });
+        }
+        toBrowser({ type: 'audio', data: ev.data });
+        break;
+      case 'reply.started': replyStartedAt = Date.now(); break;
       case 'reply.done': if (ev.status === 'interrupted') toBrowser({ type: 'interrupted' }); break;
       case 'transcript.user.delta': toBrowser({ type: 'user_partial', text: ev.text }); break;
-      case 'transcript.user': toBrowser({ type: 'user', text: ev.text }); break;
+      case 'transcript.user':
+        userDoneAt = Date.now(); gotFirstAudio = false; toolCallAt = toolResultAt = replyStartedAt = 0;
+        toBrowser({ type: 'user', text: ev.text });
+        break;
       case 'transcript.agent': toBrowser({ type: 'agent', text: ev.text }); break;
       case 'session.error':
       case 'error': app.log.error(ev); toBrowser({ type: 'error', message: ev.message ?? 'agent error' }); break;
@@ -59,6 +81,7 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   }
 
   async function handleTool(ev: { call_id: string; name: string; arguments: any }) {
+    toolCallAt = Date.now();
     let result: unknown;
     try {
       if (ev.name === 'get_next_question') {
@@ -83,6 +106,8 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     }
     // tool.result must be a JSON-encoded string, sent after reply.done per the spec;
     // in practice replying immediately with the call_id works and keeps latency down.
+    toolResultAt = Date.now();
+    app.log.info({ tool: ev.name, handling_ms: toolResultAt - toolCallAt }, 'tool');
     kobo!.send(JSON.stringify({ type: 'tool.result', call_id: ev.call_id, result: JSON.stringify(result) }));
   }
 
