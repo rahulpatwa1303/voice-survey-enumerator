@@ -55,7 +55,7 @@ export function systemPrompt(lang: Lang, today: string): string {
     `- Today is ${today}. For any date question, work out the actual calendar date the respondent means ("tomorrow", "next Monday", "in two weeks", "the 3rd") and pass it to record_answer as YYYY-MM-DD. Do not ask them to say the date digit by digit.`,
     ``,
     `Flow:`,
-    `1. Call get_next_question and ask it.`,
+    `1. To begin: greet warmly in ONE short sentence, then in the same turn call get_next_question and ask that first question. Do not wait for the respondent to speak first.`,
     `2. On each answer, call record_answer; its result holds the NEXT question — ask that. Do NOT call get_next_question again.`,
     `3. If record_answer returns ok=false, warmly say why and ask the same question again.`,
     `4. If a question is optional and they want to skip, call skip_question and ask what it returns.`,
@@ -76,7 +76,6 @@ export function sessionUpdate(lang: Lang) {
     type: 'session.update',
     session: {
       system_prompt: systemPrompt(lang, new Date().toISOString().slice(0, 10)),
-      greeting: greetingFor(lang),
       input: {
         format: { encoding: 'audio/pcm' },
         // snappier turns: react to speech sooner, need less trailing silence

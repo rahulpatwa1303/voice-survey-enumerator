@@ -45,7 +45,12 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   kobo!.on('message', async (raw) => {
     const ev = JSON.parse(raw.toString());
     switch (ev.type) {
-      case 'session.ready': toBrowser({ type: 'ready' }); break;
+      case 'session.ready':
+        toBrowser({ type: 'ready' });
+        // Make the agent open the conversation itself (greet + first question),
+        // instead of waiting for the respondent to speak first.
+        kobo!.send(JSON.stringify({ type: 'reply.create', instructions: 'Begin the interview now: greet in one short sentence, then ask the first question.' }));
+        break;
       case 'reply.audio':
         if (!gotFirstAudio && userDoneAt) {
           gotFirstAudio = true;
