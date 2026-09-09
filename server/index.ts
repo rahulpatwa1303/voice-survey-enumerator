@@ -65,10 +65,10 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
       case 'reply.started': replyStartedAt = Date.now(); break;
       case 'reply.done': if (ev.status === 'interrupted') toBrowser({ type: 'interrupted' }); break;
       case 'transcript.user.delta': toBrowser({ type: 'user_partial', text: ev.text }); break;
-      case 'transcript.user':
+      case 'input.speech.stopped':
         userDoneAt = Date.now(); gotFirstAudio = false; toolCallAt = toolResultAt = replyStartedAt = 0;
-        toBrowser({ type: 'user', text: ev.text });
         break;
+      case 'transcript.user': toBrowser({ type: 'user', text: ev.text }); break;
       case 'transcript.agent': toBrowser({ type: 'agent', text: ev.text }); break;
       case 'session.error':
       case 'error': app.log.error(ev); toBrowser({ type: 'error', message: ev.message ?? 'agent error' }); break;

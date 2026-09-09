@@ -14,6 +14,8 @@ const bufToB64 = (buf: ArrayBuffer) => { const u = new Uint8Array(buf); let s = 
 
 let ws: WebSocket, ctx: AudioContext, capture: AudioWorkletNode, playback: AudioWorkletNode, micOn = false, holding = false;
 const lat: number[] = [];
+let turnEndedAt = 0; // performance.now() when respondent released the button
+let awaitingAudio = false;
 
 async function start() {
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
@@ -42,7 +44,17 @@ async function start() {
 function onMsg(m: Msg) {
   switch (m.type) {
     case 'ready': $('status').textContent = 'ready — hold the button and let the respondent speak'; $('talk').removeAttribute('disabled'); $('stop').removeAttribute('disabled'); break;
-    case 'audio': playback.port.postMessage(b64ToBuf(m.data), [b64ToBuf(m.data)]); break;
+    case 'audio': {
+      if (awaitingAudio && turnEndedAt) {
+        awaitingAudio = false;
+        const felt = Math.round(performance.now() - turnEndedAt);
+        lat.push(felt); const avg = Math.round(lat.reduce((a,b)=>a+b,0)/lat.length);
+        log(`⏱ heard reply ${felt}ms after you released (avg ${avg}ms over ${lat.length})`, 'lat');
+      }
+      const buf = b64ToBuf(m.data);
+      playback.port.postMessage(buf, [buf]);
+      break;
+    }
     case 'interrupted': playback.port.postMessage('clear'); break;
     case 'user_partial': $('partial').textContent = m.text; break;
     case 'user': $('partial').textContent = ''; log('Respondent: ' + m.text, 'user'); break;
@@ -50,12 +62,7 @@ function onMsg(m: Msg) {
     case 'answer': paintAnswer(m.name, m.display); break;
     case 'submit': log(m.ok ? '✓ Submitted to Kobo (' + m.instanceId + ')' : '✗ Submit failed: ' + m.message, m.ok ? 'ok' : 'err'); $('status').textContent = m.ok ? 'done — record in Kobo' : 'submit failed'; break;
     case 'closed': $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
-    case 'latency': {
-      lat.push(m.total); const avg = Math.round(lat.reduce((a,b)=>a+b,0)/lat.length);
-      const b = `LLM→speech ${m.toolresult_to_reply ?? '—'}ms · tool ${m.tool_handling ?? 0}ms`;
-      log(`⏱ response in ${m.total}ms (avg ${avg}ms over ${lat.length}) — ${b}`, 'lat');
-      break;
-    }
+    case 'latency': break; // server-side breakdown still logged on the server
     case 'error': case 'fatal': log('Error: ' + m.message, 'err'); break;
   }
 }
@@ -72,7 +79,10 @@ function paintAnswer(name: string, display: string) {
 
 // Push-to-talk: mic is live only while held. Agent TTS keeps playing; the respondent's
 // answer is what we capture. Releasing stops capture so enumerator coaching isn't recorded.
-function hold(on: boolean) { micOn = on; holding = on; $('talk').classList.toggle('holding', on); }
+function hold(on: boolean) {
+  micOn = on; holding = on; $('talk').classList.toggle('holding', on);
+  if (!on) { turnEndedAt = performance.now(); awaitingAudio = true; }
+}
 const talk = $('talk');
 const press = (on: boolean) => (e: Event) => { e.preventDefault(); hold(on); };
 talk.addEventListener('pointerdown', press(true));
