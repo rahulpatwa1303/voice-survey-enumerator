@@ -20,6 +20,7 @@ async function start() {
   await new Promise((r) => (ws.onopen = () => r(null)));
 
   ctx = new AudioContext();
+  if (ctx.state === 'suspended') await ctx.resume();
   await ctx.audioWorklet.addModule('/audio-worklet.js');
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
   const src = ctx.createMediaStreamSource(stream);
@@ -52,6 +53,9 @@ function onMsg(m: Msg) {
 }
 
 function paintAnswer(name: string, display: string) {
+  // on mobile, surface the form panel when an answer lands
+  const t = document.querySelector<HTMLElement>('#tabs button[data-tab="left"]');
+  if (t && getComputedStyle(document.getElementById('tabs')!).display !== 'none') t.click();
   let row = document.querySelector<HTMLElement>(`[data-q="${name}"]`);
   if (!row) { row = document.createElement('div'); row.className = 'field'; row.dataset.q = name; row.innerHTML = `<span class="qn">${name}</span><span class="qv"></span>`; $('form').append(row); }
   row.querySelector('.qv')!.textContent = display;
@@ -61,9 +65,15 @@ function paintAnswer(name: string, display: string) {
 // Push-to-talk: mic is live only while held. Agent TTS keeps playing; the respondent's
 // answer is what we capture. Releasing stops capture so enumerator coaching isn't recorded.
 function hold(on: boolean) { micOn = on; holding = on; $('talk').classList.toggle('holding', on); }
-$('talk').addEventListener('pointerdown', () => hold(true));
-$('talk').addEventListener('pointerup', () => hold(false));
-$('talk').addEventListener('pointerleave', () => { if (holding) hold(false); });
+const talk = $('talk');
+const press = (on: boolean) => (e: Event) => { e.preventDefault(); hold(on); };
+talk.addEventListener('pointerdown', press(true));
+talk.addEventListener('pointerup', press(false));
+talk.addEventListener('pointercancel', press(false));
+talk.addEventListener('pointerleave', () => { if (holding) hold(false); });
+// iOS Safari sometimes fires touch events without pointer events; cover both.
+talk.addEventListener('touchstart', press(true), { passive: false });
+talk.addEventListener('touchend', press(false), { passive: false });
 function stop() {
   try { if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'end' })); } catch {}
   micOn = false; holding = false;
