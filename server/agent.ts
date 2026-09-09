@@ -39,7 +39,7 @@ export const tools = [
   },
 ] as const;
 
-export function systemPrompt(lang: Lang): string {
+export function systemPrompt(lang: Lang, today: string): string {
   const p = PROFILE[lang];
   return [
     `You are a warm, patient community health worker running a short survey. You sound like a real person, not a form. Speak ${p.say}.`,
@@ -52,6 +52,7 @@ export function systemPrompt(lang: Lang): string {
     `- Use short, natural sentences and contractions. A brief acknowledgement ("okay", "got it", "thank you") before the next question feels human. Do not over-apologise.`,
     `- Ask ONE question at a time. Offer the choices plainly when a question has them.`,
     `- Never give medical advice.`,
+    `- Today is ${today}. For any date question, work out the actual calendar date the respondent means ("tomorrow", "next Monday", "in two weeks", "the 3rd") and pass it to record_answer as YYYY-MM-DD. Do not ask them to say the date digit by digit.`,
     ``,
     `Flow:`,
     `1. Call get_next_question and ask it.`,
@@ -74,7 +75,7 @@ export function sessionUpdate(lang: Lang) {
   return {
     type: 'session.update',
     session: {
-      system_prompt: systemPrompt(lang),
+      system_prompt: systemPrompt(lang, new Date().toISOString().slice(0, 10)),
       greeting: greetingFor(lang),
       input: {
         format: { encoding: 'audio/pcm' },

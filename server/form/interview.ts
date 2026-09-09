@@ -119,8 +119,10 @@ export class Interview {
         const n = typeof raw === 'number' ? raw : Number(s);
         return Number.isFinite(n) ? { ok: true, value: n } : { ok: false, message: 'Please give a number.' };
       }
-      case 'date':
-        return /^\d{4}-\d{2}-\d{2}$/.test(s) ? { ok: true, value: s } : { ok: false, message: 'Give the date as YYYY-MM-DD.' };
+      case 'date': {
+        const iso = normalizeDate(s);
+        return iso ? { ok: true, value: iso } : { ok: false, message: 'I could not understand that date. Please give a day, like "next Monday" or a date.' };
+      }
       case 'select_one': {
         const m = this.matchChoice(q, s);
         return m ? { ok: true, value: m } : { ok: false, message: `Answer must be one of: ${q.choices!.map((c) => c.label[this.lang]).join(', ')}.` };
@@ -146,4 +148,18 @@ export class Interview {
     }
     return undefined;
   }
+}
+
+
+/** Accept YYYY-MM-DD, common relative words, or anything Date can parse; return YYYY-MM-DD. */
+function normalizeDate(raw: string): string | null {
+  const s = raw.trim().toLowerCase();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const day = 86400000, now = new Date();
+  const rel: Record<string, number> = { today: 0, tomorrow: 1, 'day after tomorrow': 2, yesterday: -1 };
+  if (s in rel) return new Date(now.getTime() + rel[s] * day).toISOString().slice(0, 10);
+  const inN = /^in (\d+) (day|days|week|weeks)$/.exec(s);
+  if (inN) return new Date(now.getTime() + Number(inN[1]) * (inN[2].startsWith('week') ? 7 : 1) * day).toISOString().slice(0, 10);
+  const t = Date.parse(raw);
+  return Number.isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
 }
