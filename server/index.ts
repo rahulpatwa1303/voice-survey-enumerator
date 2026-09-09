@@ -32,15 +32,9 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
 
   if (!AAI_KEY) { toBrowser({ type: 'fatal', message: 'ASSEMBLYAI_API_KEY not set on server' }); return; }
 
-  function greetingFor(l: Lang) {
-    return l === 'hi' ? 'नमस्ते। मैं आपसे एक स्वास्थ्य सर्वे के लिए कुछ सवाल पूछूँगी।'
-         : l === 'es' ? 'Hola. Le haré unas preguntas para una encuesta de salud.'
-         : 'Hello. I will ask you a few questions for a health survey.';
-  }
-
   function openAgent() {
     kobo = new WebSocket(AAI_WS, { headers: { Authorization: `Bearer ${AAI_KEY}` } });
-    kobo.on('open', () => kobo!.send(JSON.stringify(sessionUpdate(lang, greetingFor(lang)))));
+    kobo.on('open', () => kobo!.send(JSON.stringify(sessionUpdate(lang))));
     wireAgent();
   }
 
