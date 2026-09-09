@@ -80,7 +80,9 @@ export function sessionUpdate(lang: Lang) {
       input: {
         format: { encoding: 'audio/pcm' },
         // snappier turns: react to speech sooner, need less trailing silence
-        turn_detection: { vad_threshold: 0.35, min_silence: 500, max_silence: 1500, interrupt_response: true },
+        // Push-to-talk means the respondent's release already signals turn end, so we
+        // need only a short silence confirmation. This is the main felt-latency lever.
+        turn_detection: { vad_threshold: 0.3, min_silence: 200, max_silence: 1000, interrupt_response: true },
       },
       output: { voice: PROFILE[lang].voice, format: { encoding: 'audio/pcm' } },
       tools,
