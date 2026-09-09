@@ -27,6 +27,7 @@
     #talk { flex: 1; user-select: none; touch-action: none; }
     #talk.holding { background: #16a34a; }
     #start { background: #111; }
+    #stop { background: #dc2626; flex: 0 0 auto; }
     select { font: inherit; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: inherit; }
   </style>
 </head>
@@ -44,6 +45,7 @@
     </select>
     <button id="start">Start</button>
     <button id="talk" disabled>Hold to let respondent speak</button>
+    <button id="stop" disabled>Stop</button>
   </div>
   <script type="module" src="/client.ts"></script>
 </body>

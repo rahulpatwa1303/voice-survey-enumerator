@@ -38,7 +38,7 @@ async function start() {
 
 function onMsg(m: Msg) {
   switch (m.type) {
-    case 'ready': $('status').textContent = 'ready — hold the button and let the respondent speak'; $('talk').removeAttribute('disabled'); break;
+    case 'ready': $('status').textContent = 'ready — hold the button and let the respondent speak'; $('talk').removeAttribute('disabled'); $('stop').removeAttribute('disabled'); break;
     case 'audio': playback.port.postMessage(b64ToBuf(m.data), [b64ToBuf(m.data)]); break;
     case 'interrupted': playback.port.postMessage('clear'); break;
     case 'user_partial': $('partial').textContent = m.text; break;
@@ -46,6 +46,7 @@ function onMsg(m: Msg) {
     case 'agent': log('Agent: ' + m.text, 'agent'); break;
     case 'answer': paintAnswer(m.name, m.display); break;
     case 'submit': log(m.ok ? '✓ Submitted to Kobo (' + m.instanceId + ')' : '✗ Submit failed: ' + m.message, m.ok ? 'ok' : 'err'); $('status').textContent = m.ok ? 'done — record in Kobo' : 'submit failed'; break;
+    case 'closed': $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
     case 'error': case 'fatal': log('Error: ' + m.message, 'err'); break;
   }
 }
@@ -63,4 +64,17 @@ function hold(on: boolean) { micOn = on; holding = on; $('talk').classList.toggl
 $('talk').addEventListener('pointerdown', () => hold(true));
 $('talk').addEventListener('pointerup', () => hold(false));
 $('talk').addEventListener('pointerleave', () => { if (holding) hold(false); });
+function stop() {
+  try { if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'end' })); } catch {}
+  micOn = false; holding = false;
+  try { playback?.port.postMessage('clear'); } catch {}
+  try { ws?.close(); } catch {}
+  try { ctx?.close(); } catch {}
+  $('status').textContent = 'stopped';
+  $('talk').setAttribute('disabled', 'true');
+  $('stop').setAttribute('disabled', 'true');
+  $('start').removeAttribute('disabled');
+  (document.getElementById('lang') as HTMLSelectElement).removeAttribute('disabled');
+}
+$('stop').addEventListener('click', stop);
 $('start').addEventListener('click', () => start().catch((e) => log('Start failed: ' + e.message, 'err')));
