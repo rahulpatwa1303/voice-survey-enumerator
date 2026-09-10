@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "smoke": "tsx scripts/smoke.ts",
     "kobo:test": "./scripts/kobo_submit.sh",
-    "smoke:parse": "tsx scripts/smoke-parse.ts"
+    "smoke:parse": "tsx scripts/smoke-parse.ts",
+    "smoke:receipt": "tsx scripts/smoke-receipt.ts",
+    "test": "npm run -s smoke && npm run -s smoke:parse && npm run -s smoke:receipt"
   },
   "dependencies": {
     "@fastify/websocket": "^11.0.2",

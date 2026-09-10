@@ -9,11 +9,12 @@ type Msg =
 
 const $ = (id: string) => document.getElementById(id)!;
 const log = (t: string, cls = '') => { const d = document.createElement('div'); d.className = 'line ' + cls; d.textContent = t; $('transcript').append(d); $('transcript').scrollTop = 1e9; };
-function downloadJSON(obj: unknown) {
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+function download(name: string, data: string, mime: string) {
+  const blob = new Blob([data], { type: mime });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'survey-record.json'; a.click(); URL.revokeObjectURL(a.href);
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
 }
+const downloadJSON = (obj: unknown) => download('survey-record.json', JSON.stringify(obj, null, 2), 'application/json');
 const b64ToBuf = (b64: string) => { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; };
 const bufToB64 = (buf: ArrayBuffer) => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
 
@@ -21,6 +22,7 @@ let ws: WebSocket, ctx: AudioContext, capture: AudioWorkletNode, playback: Audio
 const lat: number[] = [];
 let turnEndedAt = 0; // performance.now() when respondent released the button
 let uploadedFormId: string | null = null;
+let lastReceipt: { json: unknown; text: string } | null = null;
 let awaitingAudio = false;
 
 async function start() {
@@ -68,6 +70,12 @@ function onMsg(m: Msg) {
     case 'answer': paintAnswer(m.name, m.display); break;
     case 'submit': {
       const anyM = m as any;
+      if (anyM.receipt) {
+        lastReceipt = { json: anyM.receipt, text: anyM.receiptText };
+        $('receipt').removeAttribute('disabled');
+        const sum = anyM.receipt.summary;
+        log(`🧾 Receipt ready — ${sum.answered} answered, ${sum.skipped} skipped, ${sum.corrections} corrections`, 'ok');
+      }
       if (anyM.record) downloadJSON(anyM.record);
       const msg = anyM.instanceId ? '✓ Submitted to Kobo (' + anyM.instanceId + ')' : anyM.note ? '✓ ' + anyM.note : (m.ok ? '✓ Recorded' : '✗ Submit failed: ' + anyM.message);
       log(msg, m.ok ? 'ok' : 'err');
@@ -133,5 +141,10 @@ async function onUpload(file: File) {
 }
 (document.getElementById('file') as HTMLInputElement).addEventListener('change', (e) => {
   const f = (e.target as HTMLInputElement).files?.[0]; if (f) onUpload(f).catch((err) => log('Upload error: ' + err.message, 'err'));
+});
+$('receipt').addEventListener('click', () => {
+  if (!lastReceipt) return;
+  download('interview-receipt.json', JSON.stringify(lastReceipt.json, null, 2), 'application/json');
+  download('interview-receipt.txt', lastReceipt.text, 'text/plain');
 });
 $('start').addEventListener('click', () => start().catch((e) => log('Start failed: ' + e.message, 'err')));

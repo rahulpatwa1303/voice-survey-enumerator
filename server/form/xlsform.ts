@@ -74,7 +74,7 @@ export function parseXlsform(buf: Buffer | ArrayBuffer): ParseResult {
 
     const rel = String(r.relevant ?? '').trim();
     if (rel) {
-      try { const f = compile(rel); q.relevant = (a) => f(a); }
+      try { const f = compile(rel); q.relevant = (a) => f(a); q.relevantSrc = rel; }
       catch (e) { limitations.push(`Skip logic on "${name}" not supported (${(e as Error).message}); question always shown.`); }
     }
     const con = String(r.constraint ?? '').trim();
@@ -83,6 +83,7 @@ export function parseXlsform(buf: Buffer | ArrayBuffer): ParseResult {
         const f = compile(con);
         const msg = labelsFrom(r, 'constraint_message');
         q.constraint = { check: (v) => f({}, v), message: Object.keys(msg).length ? msg : { en: 'That value is not allowed.' } };
+        q.constraintSrc = con;
       } catch (e) { limitations.push(`Constraint on "${name}" not supported (${(e as Error).message}); not enforced.`); }
     }
     questions.push(q);

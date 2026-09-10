@@ -9,6 +9,7 @@ import { Interview } from './form/interview.js';
 import { sessionUpdate } from './agent.js';
 import { submitToKobo } from './kobo.js';
 import { parseXlsform } from './form/xlsform.js';
+import { Receipt } from './form/receipt.js';
 import { randomUUID } from 'node:crypto';
 
 // Uploaded forms live here between the HTTP upload and the WS session picking them up.
@@ -48,6 +49,7 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   let lang: Lang = 'en';
   let activeForm: FormDefinition = demoForm;
   let iv = new Interview(activeForm, lang);
+  let receipt = new Receipt(activeForm, lang);
   let kobo: WebSocket | null = null;
   let submitted = false;
   // turn-latency instrumentation
@@ -96,8 +98,8 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
       case 'input.speech.stopped':
         userDoneAt = Date.now(); gotFirstAudio = false; toolCallAt = toolResultAt = replyStartedAt = 0;
         break;
-      case 'transcript.user': toBrowser({ type: 'user', text: ev.text }); break;
-      case 'transcript.agent': toBrowser({ type: 'agent', text: ev.text }); break;
+      case 'transcript.user': receipt.respondentSaid(ev.text); toBrowser({ type: 'user', text: ev.text }); break;
+      case 'transcript.agent': receipt.agentSaid(ev.text); toBrowser({ type: 'agent', text: ev.text }); break;
       case 'session.error':
       case 'error': app.log.error(ev); toBrowser({ type: 'error', message: ev.message ?? 'agent error' }); break;
       case 'tool.call': await handleTool(ev); break;
@@ -116,11 +118,11 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
         result = iv.next();
       } else if (ev.name === 'record_answer') {
         const r = iv.record(ev.arguments?.name, ev.arguments?.value);
-        if (r.ok) { toBrowser({ type: 'answer', name: r.name, value: r.value, display: r.display, answers: iv.answers }); result = { ...r, next: iv.next() }; }
-        else result = r;
+        if (r.ok) { receipt.answered(r.name, r.value, r.display); toBrowser({ type: 'answer', name: r.name, value: r.value, display: r.display, answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        else { receipt.rejected(ev.arguments?.name, ev.arguments?.value, r.message); result = r; }
       } else if (ev.name === 'skip_question') {
         const r = iv.skip(ev.arguments?.name);
-        if (r.ok) { toBrowser({ type: 'answer', name: r.name, value: null, display: '(skipped)', answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        if (r.ok) { receipt.skippedQ(r.name); toBrowser({ type: 'answer', name: r.name, value: null, display: '(skipped)', answers: iv.answers }); result = { ...r, next: iv.next() }; }
         else result = r;
       } else if (ev.name === 'finish') {
         const f = iv.finish();
@@ -147,12 +149,15 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     if (activeForm === demoForm && uid) {
       try {
         const { instanceId } = await submitToKobo(uid, record);
-        toBrowser({ type: 'submit', ok: true, instanceId, record });
+        receipt.submitted(true, 'KoboToolbox', instanceId);
+        toBrowser({ type: 'submit', ok: true, instanceId, record, receipt: receipt.toJSON(record), receiptText: receipt.toText(record) });
       } catch (e) {
-        toBrowser({ type: 'submit', ok: false, message: (e as Error).message, record });
+        receipt.submitted(false, 'KoboToolbox', undefined, (e as Error).message);
+        toBrowser({ type: 'submit', ok: false, message: (e as Error).message, record, receipt: receipt.toJSON(record), receiptText: receipt.toText(record) });
       }
     } else {
-      toBrowser({ type: 'submit', ok: true, record, note: 'Downloaded (this form is not connected to Kobo yet).' });
+      receipt.submitted(true, 'download');
+      toBrowser({ type: 'submit', ok: true, record, note: 'Downloaded (this form is not connected to Kobo yet).', receipt: receipt.toJSON(record), receiptText: receipt.toText(record) });
     }
   }
 
@@ -163,6 +168,7 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
       activeForm = up ? up.form : demoForm;
       lang = m.lang || (up?.languages?.[0]) || 'en';
       iv = new Interview(activeForm, lang);
+      receipt = new Receipt(activeForm, lang);
       openAgent();
     } else if (m.type === 'audio' && kobo?.readyState === 1) {
       kobo.send(JSON.stringify({ type: 'input.audio', audio: m.data }));

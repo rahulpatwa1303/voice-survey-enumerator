@@ -20,8 +20,12 @@ export type Question = {
   choices?: Choice[];
   /** XLSForm `relevant`: ask only when this returns true. */
   relevant?: (a: Answers) => boolean;
+  /** Raw `relevant` expression, cited in the receipt. */
+  relevantSrc?: string;
   /** XLSForm `constraint` + `constraint_message`. */
   constraint?: { check: (v: unknown) => boolean; message: Labels };
+  /** Raw `constraint` expression, cited in the receipt. */
+  constraintSrc?: string;
   /** Not sent to Kobo (e.g. consent). */
   local?: boolean;
   /** Set when the XLSForm type isn't voice-supported; enumerator fills manually. */
@@ -61,7 +65,7 @@ export const demoForm: FormDefinition = {
     {
       name: 'age', type: 'integer', required: true,
       label: { en: 'How old are you?', hi: 'आपकी उम्र क्या है?', es: '¿Cuántos años tiene?' },
-      constraint: { check: between(15, 60), message: { en: 'Age must be between 15 and 60', hi: 'उम्र 15 और 60 के बीच होनी चाहिए', es: 'La edad debe estar entre 15 y 60' } },
+      constraintSrc: '. >= 15 and . <= 60', constraint: { check: between(15, 60), message: { en: 'Age must be between 15 and 60', hi: 'उम्र 15 और 60 के बीच होनी चाहिए', es: 'La edad debe estar entre 15 y 60' } },
     },
     {
       name: 'pregnant', type: 'select_one', required: true, choices: yesNo,
@@ -69,13 +73,13 @@ export const demoForm: FormDefinition = {
     },
     {
       name: 'months_pregnant', type: 'integer', required: true,
-      relevant: (a) => a.pregnant === 'yes',
+      relevant: (a) => a.pregnant === 'yes', relevantSrc: "${pregnant} = 'yes'",
       label: { en: 'How many months pregnant are you?', hi: 'आप कितने महीने की गर्भवती हैं?', es: '¿Cuántos meses de embarazo tiene?' },
-      constraint: { check: between(1, 9), message: { en: 'Months must be between 1 and 9', hi: 'महीने 1 और 9 के बीच होने चाहिए', es: 'Los meses deben estar entre 1 y 9' } },
+      constraintSrc: '. >= 1 and . <= 9', constraint: { check: between(1, 9), message: { en: 'Months must be between 1 and 9', hi: 'महीने 1 और 9 के बीच होने चाहिए', es: 'Los meses deben estar entre 1 y 9' } },
     },
     {
       name: 'anc_visits', type: 'select_one', required: true,
-      relevant: (a) => a.pregnant === 'yes',
+      relevant: (a) => a.pregnant === 'yes', relevantSrc: "${pregnant} = 'yes'",
       label: { en: 'How many antenatal check-ups have you had?', hi: 'आपने कितनी प्रसव-पूर्व जाँचें कराई हैं?', es: '¿Cuántos controles prenatales ha tenido?' },
       choices: [
         { name: 'none', label: { en: 'None', hi: 'कोई नहीं', es: 'Ninguno' } },
@@ -86,7 +90,7 @@ export const demoForm: FormDefinition = {
     {
       name: 'children_under5', type: 'integer', required: true,
       label: { en: 'How many children under five live with you?', hi: 'आपके साथ पाँच साल से कम उम्र के कितने बच्चे रहते हैं?', es: '¿Cuántos niños menores de cinco años viven con usted?' },
-      constraint: { check: between(0, 15), message: { en: 'Please give a number between 0 and 15', hi: 'कृपया 0 और 15 के बीच की संख्या बताएं', es: 'Indique un número entre 0 y 15' } },
+      constraintSrc: '. >= 0 and . <= 15', constraint: { check: between(0, 15), message: { en: 'Please give a number between 0 and 15', hi: 'कृपया 0 और 15 के बीच की संख्या बताएं', es: 'Indique un número entre 0 y 15' } },
     },
     {
       name: 'symptoms', type: 'select_multiple', required: true,
