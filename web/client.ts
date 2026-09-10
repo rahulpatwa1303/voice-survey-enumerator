@@ -99,10 +99,11 @@ function onMsg(m: Msg) {
       if (anyM.receipt) {
         lastReceipt = { json: anyM.receipt, text: anyM.receiptText };
         $('receipt').removeAttribute('disabled');
+        renderReceipt(anyM.receipt);
+        showReceipt(true);
         const sum = anyM.receipt.summary;
         log(`🧾 Receipt ready — ${sum.answered} answered, ${sum.skipped} skipped, ${sum.corrections} corrections`, 'ok');
       }
-      if (anyM.record) downloadJSON(anyM.record);
       const msg = anyM.instanceId ? '✓ Submitted to Kobo (' + anyM.instanceId + ')' : anyM.note ? '✓ ' + anyM.note : (m.ok ? '✓ Recorded' : '✗ Submit failed: ' + anyM.message);
       log(msg, m.ok ? 'ok' : 'err');
       $('status').textContent = m.ok ? 'done' : 'submit failed';
@@ -173,12 +174,44 @@ async function onUpload(file: File) {
 (document.getElementById('file') as HTMLInputElement).addEventListener('change', (e) => {
   const f = (e.target as HTMLInputElement).files?.[0]; if (f) onUpload(f).catch((err) => log('Upload error: ' + err.message, 'err'));
 });
+function esc(t: unknown) { return String(t ?? '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]!)); }
+
+function renderReceipt(r: any) {
+  $('receiptsummary').textContent =
+    `${r.form.title} · ${r.summary.answered} answered · ${r.summary.skipped} skipped · ${r.summary.corrections} correction(s)`;
+  const parts: string[] = [];
+  for (const e of r.events) {
+    if (e.t === 'answer') {
+      parts.push(`<div class="rq"><div class="q">${esc(e.question)}</div>
+        <div class="v">${esc(e.display)}</div>
+        ${e.heard ? `<div class="meta heard">respondent said: “${esc(e.heard)}”</div>` : ''}
+        ${e.shownBecause ? `<div class="meta">asked because ${esc(e.shownBecause)}</div>` : ''}
+        ${e.validatedBy ? `<div class="meta">checked against ${esc(e.validatedBy)}</div>` : ''}</div>`);
+    } else if (e.t === 'rejected') {
+      parts.push(`<div class="rq bad"><div class="q">${esc(e.question)}</div>
+        <div class="v">rejected “${esc(e.attempted)}” — ${esc(e.reason)}</div>
+        ${e.heard ? `<div class="meta heard">respondent said: “${esc(e.heard)}”</div>` : ''}
+        ${e.rule ? `<div class="meta">rule ${esc(e.rule)}</div>` : ''}</div>`);
+    } else if (e.t === 'skipped') {
+      parts.push(`<div class="rq skip"><div class="q">${esc(e.question)}</div><div class="v">skipped (optional)</div></div>`);
+    } else if (e.t === 'submitted') {
+      parts.push(`<div class="rq"><div class="q">Submitted to ${esc(e.destination)}</div>
+        <div class="meta">${e.ok ? esc(e.instanceId ?? 'ok') : 'failed: ' + esc(e.message)}</div></div>`);
+    }
+  }
+  $('receiptbody').innerHTML = parts.join('');
+}
+
+function showReceipt(on: boolean) {
+  ($('receiptpanel') as HTMLElement).hidden = !on;
+  ($('tabs') as HTMLElement).style.display = on ? 'none' : '';
+  document.querySelectorAll<HTMLElement>('main > section:not(#receiptpanel)').forEach((el) => { el.style.display = on ? 'none' : ''; });
+}
+$('closereceipt').addEventListener('click', () => showReceipt(false));
+$('dlreceipt').addEventListener('click', () => lastReceipt && download('interview-receipt.txt', lastReceipt.text, 'text/plain'));
+$('dljson').addEventListener('click', () => lastReceipt && download('interview-receipt.json', JSON.stringify(lastReceipt.json, null, 2), 'application/json'));
 $('nudge').addEventListener('click', () => {
   if (ws?.readyState === 1) { ws.send(JSON.stringify({ type: 'nudge' })); log('↻ Asked the agent to continue.', 'lat'); }
 });
-$('receipt').addEventListener('click', () => {
-  if (!lastReceipt) return;
-  download('interview-receipt.json', JSON.stringify(lastReceipt.json, null, 2), 'application/json');
-  download('interview-receipt.txt', lastReceipt.text, 'text/plain');
-});
+$('receipt').addEventListener('click', () => { if (lastReceipt) showReceipt(true); });
 $('start').addEventListener('click', () => start().catch((e) => log('Start failed: ' + e.message, 'err')));

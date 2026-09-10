@@ -21,6 +21,17 @@
     .pill.stalled { color: #dc2626; background: #dc262618; }
     @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
     #nudge { background: #b45309; flex: 0 0 auto; }
+    #receiptpanel { grid-column: 1 / -1; background: var(--bg, transparent); }
+    #receiptsummary { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; font-weight: 600; }
+    .rq { border-left: 3px solid #16a34a; padding: 6px 0 6px 12px; margin-bottom: 12px; }
+    .rq.bad { border-left-color: #dc2626; } .rq.skip { border-left-color: #6b7280; }
+    .rq .q { font-weight: 600; }
+    .rq .v { font-size: 15px; }
+    .rq .meta { color: #888; font-size: 12.5px; margin-top: 2px; }
+    .rq .heard { font-style: italic; }
+    .rbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    button.small { padding: 8px 12px; font-size: 13px; border-radius: 8px; }
+    button.ghost { background: transparent; color: inherit; }
     #tabs { display: none; }
     @media (max-width: 640px) {
       main { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -68,6 +79,16 @@
   <main>
     <section id="left"><h2>Form</h2><div id="form"></div></section>
     <section id="right"><h2>Conversation</h2><div id="transcript"></div><div id="partial"></div></section>
+    <section id="receiptpanel" hidden>
+      <h2>Interview receipt</h2>
+      <div id="receiptsummary"></div>
+      <div id="receiptbody"></div>
+      <div class="rbtns">
+        <button id="dlreceipt" class="small">Download for records (.txt)</button>
+        <button id="dljson" class="small">Export data (.json)</button>
+        <button id="closereceipt" class="small ghost">Back</button>
+      </div>
+    </section>
   </main>
   <div class="bar">
     <label id="uploadlbl" title="Upload an XLSForm (.xlsx)">Upload form<input id="file" type="file" accept=".xlsx" hidden></label>
