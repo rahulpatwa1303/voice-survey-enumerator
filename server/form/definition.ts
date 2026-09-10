@@ -53,9 +53,9 @@ export const demoForm: FormDefinition = {
     {
       name: 'consent', type: 'select_one', required: true, local: true, choices: yesNo,
       label: {
-        en: 'This conversation is recorded and written down for the health survey. Is that okay with you?',
-        hi: 'यह बातचीत स्वास्थ्य सर्वे के लिए रिकॉर्ड और लिखी जाएगी। क्या आप इसके लिए सहमत हैं?',
-        es: 'Esta conversación se graba y se anota para la encuesta de salud. ¿Está de acuerdo?',
+        en: 'Before we start — is it alright if I record and write down what we talk about?',
+        hi: 'शुरू करने से पहले — क्या मैं हमारी बातचीत रिकॉर्ड कर के लिख सकती हूँ?',
+        es: 'Antes de empezar, ¿le parece bien si grabo y anoto lo que hablemos?',
       },
     },
     {
@@ -122,9 +122,9 @@ export function consentQuestion(): Question {
       { name: 'no', label: { en: 'No', hi: 'नहीं', es: 'No' } },
     ],
     label: {
-      en: 'This conversation is recorded and written down for the survey. Is that okay with you?',
-      hi: 'यह बातचीत सर्वे के लिए रिकॉर्ड और लिखी जाएगी। क्या आप सहमत हैं?',
-      es: 'Esta conversación se graba y se anota para la encuesta. ¿Está de acuerdo?',
+      en: 'Before we start — is it alright if I record and write down what we talk about?',
+      hi: 'शुरू करने से पहले — क्या मैं हमारी बातचीत रिकॉर्ड कर के लिख सकती हूँ?',
+      es: 'Antes de empezar, ¿le parece bien si grabo y anoto lo que hablemos?',
     },
   };
 }
