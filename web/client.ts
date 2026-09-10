@@ -177,6 +177,15 @@ async function onUpload(file: File) {
 function esc(t: unknown) { return String(t ?? '').replace(/[<>&]/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]!)); }
 
 function renderReceipt(r: any) {
+  const started = new Date(r.startedAt);
+  const sub = r.events.find((e: any) => e.t === 'submitted');
+  $('printtitle').textContent = `${r.form.title} — interview receipt`;
+  $('printmeta').innerHTML = [
+    `Interview conducted ${started.toLocaleString()}`,
+    `Language: ${r.language}`,
+    sub?.instanceId ? `Record: ${esc(sub.instanceId)}` : sub ? `Destination: ${esc(sub.destination)}` : '',
+    `Form ID: ${esc(r.form.id)}`,
+  ].filter(Boolean).join(' &middot; ');
   $('receiptsummary').textContent =
     `${r.form.title} · ${r.summary.answered} answered · ${r.summary.skipped} skipped · ${r.summary.corrections} correction(s)`;
   const parts: string[] = [];
@@ -208,6 +217,7 @@ function showReceipt(on: boolean) {
   document.querySelectorAll<HTMLElement>('main > section:not(#receiptpanel)').forEach((el) => { el.style.display = on ? 'none' : ''; });
 }
 $('closereceipt').addEventListener('click', () => showReceipt(false));
+$('pdf').addEventListener('click', () => window.print());
 $('dlreceipt').addEventListener('click', () => lastReceipt && download('interview-receipt.txt', lastReceipt.text, 'text/plain'));
 $('dljson').addEventListener('click', () => lastReceipt && download('interview-receipt.json', JSON.stringify(lastReceipt.json, null, 2), 'application/json'));
 $('nudge').addEventListener('click', () => {
