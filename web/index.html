@@ -11,6 +11,16 @@
     header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: baseline; flex: 0 0 auto; }
     header b { font-size: 16px; } #status { color: #888; font-size: 13px; }
     main { display: grid; grid-template-columns: 1fr 1fr; gap: 0; flex: 1 1 auto; min-height: 0; }
+    .pill { flex: 0 0 auto; padding: 10px 16px; font-weight: 600; font-size: 14px; text-align: center;
+            border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .pill::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+    .pill.idle { color: #6b7280; }
+    .pill.listening { color: #16a34a; } .pill.listening::before { animation: pulse 1s infinite; }
+    .pill.thinking { color: #d97706; font-variant-numeric: tabular-nums; } .pill.thinking::before { animation: pulse .7s infinite; }
+    .pill.speaking { color: #7c3aed; } .pill.speaking::before { animation: pulse .9s infinite; }
+    .pill.stalled { color: #dc2626; background: #dc262618; }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+    #nudge { background: #b45309; flex: 0 0 auto; }
     #tabs { display: none; }
     @media (max-width: 640px) {
       main { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -21,7 +31,7 @@
       main > section { display: none; } main > section.show { display: block; }
       .bar { padding: 10px 12px; gap: 8px; }
       #lang { flex: 1 1 100%; }
-      #start, #stop, #receipt { flex: 1 1 0; }
+      #start, #stop, #receipt, #nudge { flex: 1 1 0; }
       #talk { flex: 2 1 0; min-height: 60px; }
     }
     section { padding: 14px 16px; overflow: auto; }
@@ -50,6 +60,7 @@
 </head>
 <body>
   <header><b>Late Shift</b><span>voice survey</span><span id="status">press Start</span></header>
+  <div id="phase" class="pill idle">Press Start</div>
   <nav id="tabs">
     <button data-tab="left" class="on">Form</button>
     <button data-tab="right">Conversation</button>
@@ -68,6 +79,7 @@
     <button id="start">Start</button>
     <button id="talk" disabled>Hold to let respondent speak</button>
     <button id="stop" disabled>Stop</button>
+    <button id="nudge" disabled title="Ask the agent to continue">↻ Retry</button>
     <button id="receipt" disabled title="Download the interview receipt">🧾 Receipt</button>
   </div>
   <script>

@@ -54,6 +54,28 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   let submitted = false;
   // turn-latency instrumentation
   let userDoneAt = 0, toolCallAt = 0, toolResultAt = 0, replyStartedAt = 0, gotFirstAudio = true;
+  // conversation state so the UI can always say what is happening
+  type Phase = 'idle' | 'listening' | 'thinking' | 'speaking';
+  let phase: Phase = 'idle';
+  let stallTimer: NodeJS.Timeout | null = null;
+  let nudged = false;
+  const setPhase = (p: Phase) => { phase = p; toBrowser({ type: 'phase', phase: p }); };
+  const clearStall = () => { if (stallTimer) { clearTimeout(stallTimer); stallTimer = null; } };
+  // If the agent goes quiet after the respondent's turn, nudge it once, then warn.
+  function armStall() {
+    clearStall();
+    nudged = false;
+    stallTimer = setTimeout(() => {
+      if (phase !== 'thinking' || kobo?.readyState !== 1) return;
+      nudged = true;
+      toBrowser({ type: 'stalled', nudging: true });
+      app.log.warn('agent stalled; nudging');
+      kobo.send(JSON.stringify({ type: 'reply.create', instructions: 'Continue the interview: ask the current question again, briefly.' }));
+      stallTimer = setTimeout(() => {
+        if (phase === 'thinking') { toBrowser({ type: 'stalled', nudging: false }); app.log.error('agent still stalled after nudge'); }
+      }, 8000);
+    }, 6000);
+  }
   const ms = (a: number, b: number) => (a && b ? `${b - a}ms` : '—');
 
   const toBrowser = (m: unknown) => { if (browser.readyState === 1) browser.send(JSON.stringify(m)); };
@@ -72,6 +94,7 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     switch (ev.type) {
       case 'session.ready':
         toBrowser({ type: 'ready' });
+        setPhase('thinking'); armStall();
         // Make the agent open the conversation itself (greet + first question),
         // instead of waiting for the respondent to speak first.
         kobo!.send(JSON.stringify({ type: 'reply.create', instructions: 'Begin the interview now: greet in one short sentence, then ask the first question.' }));
@@ -92,10 +115,12 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
         }
         toBrowser({ type: 'audio', data: ev.data });
         break;
-      case 'reply.started': replyStartedAt = Date.now(); break;
-      case 'reply.done': if (ev.status === 'interrupted') toBrowser({ type: 'interrupted' }); break;
+      case 'input.speech.started': setPhase('listening'); clearStall(); break;
+      case 'reply.started': replyStartedAt = Date.now(); clearStall(); setPhase('speaking'); break;
+      case 'reply.done': setPhase('idle'); if (ev.status === 'interrupted') toBrowser({ type: 'interrupted' }); break;
       case 'transcript.user.delta': toBrowser({ type: 'user_partial', text: ev.text }); break;
       case 'input.speech.stopped':
+        setPhase('thinking'); armStall();
         userDoneAt = Date.now(); gotFirstAudio = false; toolCallAt = toolResultAt = replyStartedAt = 0;
         break;
       case 'transcript.user': receipt.respondentSaid(ev.text); toBrowser({ type: 'user', text: ev.text }); break;
@@ -106,7 +131,7 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
     }
   });
 
-  kobo!.on('close', () => toBrowser({ type: 'closed' }));
+  kobo!.on('close', () => { clearStall(); setPhase('idle'); toBrowser({ type: 'closed' }); });
   kobo!.on('error', (e) => { app.log.error(e); toBrowser({ type: 'error', message: 'agent connection error' }); });
   }
 
@@ -172,12 +197,15 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
       openAgent();
     } else if (m.type === 'audio' && kobo?.readyState === 1) {
       kobo.send(JSON.stringify({ type: 'input.audio', audio: m.data }));
+    } else if (m.type === 'nudge' && kobo?.readyState === 1) {
+      kobo.send(JSON.stringify({ type: 'reply.create', instructions: 'Continue the interview: ask the current question again, briefly.' }));
+      setPhase('thinking'); armStall();
     } else if (m.type === 'end' && kobo?.readyState === 1) {
       kobo.send(JSON.stringify({ type: 'session.end' }));
     }
   });
 
-  browser.on('close', () => { try { kobo?.close(); } catch {} });
+  browser.on('close', () => { clearStall(); try { kobo?.close(); } catch {} });
 });
 
 app.listen({ port: PORT, host: '0.0.0.0' }).then(() => app.log.info(`bridge on :${PORT}`));

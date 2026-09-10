@@ -4,6 +4,8 @@ type Msg =
   | { type: 'user_partial'; text: string } | { type: 'user'; text: string } | { type: 'agent'; text: string }
   | { type: 'answer'; name: string; value: unknown; display: string; answers: Record<string, unknown> }
   | { type: 'submit'; ok: boolean; instanceId?: string; message?: string }
+  | { type: 'phase'; phase: 'idle'|'listening'|'thinking'|'speaking' }
+  | { type: 'stalled'; nudging: boolean }
   | { type: 'latency'; total: number; user_to_toolcall: number|null; tool_handling: number|null; toolresult_to_reply: number|null; reply_to_audio: number|null }
   | { type: 'error' | 'fatal'; message: string };
 
@@ -23,6 +25,30 @@ const lat: number[] = [];
 let turnEndedAt = 0; // performance.now() when respondent released the button
 let uploadedFormId: string | null = null;
 let lastReceipt: { json: unknown; text: string } | null = null;
+let thinkingSince = 0, phaseTimer: number | undefined;
+
+const PHASE_TEXT: Record<string, string> = {
+  idle: 'Ready — hold to let the respondent speak',
+  listening: 'Listening to the respondent…',
+  thinking: 'Thinking…',
+  speaking: 'Agent is speaking…',
+};
+
+function setPhase(p: 'idle'|'listening'|'thinking'|'speaking') {
+  const pill = $('phase');
+  pill.className = 'pill ' + p;
+  pill.textContent = PHASE_TEXT[p];
+  clearInterval(phaseTimer);
+  if (p === 'thinking') {
+    thinkingSince = performance.now();
+    // show a counter so nobody is left wondering whether it is stuck
+    phaseTimer = setInterval(() => {
+      const s = ((performance.now() - thinkingSince) / 1000).toFixed(1);
+      pill.textContent = `Thinking… ${s}s`;
+    }, 100) as unknown as number;
+  }
+  $('nudge').toggleAttribute('disabled', !(p === 'thinking' || p === 'idle'));
+}
 let awaitingAudio = false;
 
 async function start() {
@@ -51,7 +77,7 @@ async function start() {
 
 function onMsg(m: Msg) {
   switch (m.type) {
-    case 'ready': $('status').textContent = 'ready — hold the button and let the respondent speak'; $('talk').removeAttribute('disabled'); $('stop').removeAttribute('disabled'); break;
+    case 'ready': $('status').textContent = 'connected'; $('talk').removeAttribute('disabled'); $('stop').removeAttribute('disabled'); break;
     case 'audio': {
       if (awaitingAudio && turnEndedAt) {
         awaitingAudio = false;
@@ -82,8 +108,13 @@ function onMsg(m: Msg) {
       $('status').textContent = m.ok ? 'done' : 'submit failed';
       break;
     }
-    case 'closed': $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
+    case 'closed': setPhase('idle'); $('phase').textContent = 'Disconnected'; $('status').textContent = 'disconnected'; $('talk').setAttribute('disabled','true'); $('stop').setAttribute('disabled','true'); $('start').removeAttribute('disabled'); break;
     case 'latency': break; // server-side breakdown still logged on the server
+    case 'phase': setPhase(m.phase); break;
+    case 'stalled':
+      if (m.nudging) { $('phase').className = 'pill stalled'; log('⏳ Agent went quiet — nudging it to continue.', 'err'); }
+      else { $('phase').className = 'pill stalled'; $('phase').textContent = 'No response — tap Retry'; log('✗ Agent is not responding. Tap Retry, or Stop and start again.', 'err'); }
+      break;
     case 'error': case 'fatal': log('Error: ' + m.message, 'err'); break;
   }
 }
@@ -141,6 +172,9 @@ async function onUpload(file: File) {
 }
 (document.getElementById('file') as HTMLInputElement).addEventListener('change', (e) => {
   const f = (e.target as HTMLInputElement).files?.[0]; if (f) onUpload(f).catch((err) => log('Upload error: ' + err.message, 'err'));
+});
+$('nudge').addEventListener('click', () => {
+  if (ws?.readyState === 1) { ws.send(JSON.stringify({ type: 'nudge' })); log('↻ Asked the agent to continue.', 'lat'); }
 });
 $('receipt').addEventListener('click', () => {
   if (!lastReceipt) return;
