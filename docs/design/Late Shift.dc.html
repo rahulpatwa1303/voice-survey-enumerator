@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2823; font-family: Archivo, "Noto Sans Devanagari", Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #1e5fbf; }
+  a:hover { color: #14408a; }
+  button { font-family: inherit; }
+  @keyframes ls-pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.82); opacity: .72; } }
+  @keyframes ls-dots { 0%,100% { opacity: .25; } 40% { opacity: 1; } }
+  @keyframes ls-ring { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,.35); } 50% { box-shadow: 0 0 0 18px rgba(255,255,255,0); } }
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 28px 16px 40px;">
+
+  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center;">
+    <sc-for list="{{ devices }}" as="d" hint-placeholder-count="3">
+      <button type="button" onClick="{{ d.go }}" style="min-height: 40px; padding: 0 16px; border: 2px solid {{ d.border }}; border-radius: 10px; background: {{ d.bg }}; color: {{ d.ink }}; font-size: 14px; font-weight: 700; cursor: pointer;">{{ d.label }}</button>
+    </sc-for>
+  </div>
+
+  <div style="width: {{ frameW }}; max-width: 100%; height: {{ frameH }}; max-height: 88vh; background: #f7f5f0; border-radius: {{ frameR }}; overflow: hidden; position: relative; box-shadow: 0 30px 70px rgba(0,0,0,.45); display: flex; flex-direction: {{ frameDir }}; color: #1c1a17;">
+
+    <!-- ============ TODAY ============ -->
+    <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 30px 20px 0;">
+          <div style="font-size: 15px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #6b6558;">{{ todayDate }}</div>
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 6px;">Good morning, Meena</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px;">
+          <button type="button" onClick="{{ goSetup }}" style="width: 100%; min-height: 150px; border: none; border-radius: 22px; background: #1c1a17; color: #f7f5f0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+            <div style="width: 0; height: 0; border-left: 30px solid #f7f5f0; border-top: 19px solid transparent; border-bottom: 19px solid transparent;"></div>
+            <div style="font-size: 30px; font-weight: 800;">New interview</div>
+          </button>
+
+          <div style="display: flex; gap: 12px;">
+            <div style="flex: 1; border: 3px solid #ded9cd; border-radius: 18px; padding: 14px;">
+              <div style="font-size: 40px; font-weight: 800; line-height: 1;">{{ todayCount }}</div>
+              <div style="font-size: 15px; font-weight: 700; color: #4a463d; margin-top: 4px;">Done today</div>
+            </div>
+            <div style="flex: 1; border: 3px solid #ded9cd; border-radius: 18px; padding: 14px;">
+              <div style="font-size: 40px; font-weight: 800; line-height: 1;">{{ weekCount }}</div>
+              <div style="font-size: 15px; font-weight: 700; color: #4a463d; margin-top: 4px;">This week</div>
+            </div>
+          </div>
+
+          <sc-if value="{{ hasWaiting }}" hint-placeholder-val="{{ true }}">
+            <div style="border: 3px solid #b06a00; border-radius: 18px; background: #fff8ec; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 26px; height: 26px; background: #b06a00; color: #fff; font-weight: 800; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: none;">!</div>
+                <div style="font-size: 19px; font-weight: 700; color: #8a5200;">{{ waitingHeading }}</div>
+              </div>
+              <div style="font-size: 16px; line-height: 1.35; color: #4a463d; text-wrap: pretty;">They are safe on this phone. Send them when you have signal.</div>
+              <button type="button" onClick="{{ sendAll }}" style="width: 100%; height: 68px; border: none; border-radius: 16px; background: #b06a00; color: #fff; font-size: 21px; font-weight: 800; cursor: pointer;">Send them now</button>
+            </div>
+          </sc-if>
+
+          <div style="border: 3px solid #ded9cd; border-radius: 18px; padding: 16px;">
+            <div style="font-size: 15px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #6b6558;">Survey in use</div>
+            <div style="font-size: 21px; font-weight: 800; margin-top: 4px;">{{ activeFormTitle }}</div>
+            <div style="font-size: 16px; color: #4a463d;">{{ activeFormSub }}</div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ HISTORY ============ -->
+    <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 30px 20px 14px; border-bottom: 2px solid #e2ddd2;">
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: -.02em;">Past interviews</div>
+          <div style="font-size: 17px; color: #4a463d; margin-top: 4px;">{{ historySummary }}</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 4px 20px 16px;">
+          <sc-for list="{{ historyRows }}" as="h" hint-placeholder-count="5">
+            <button type="button" onClick="{{ h.open }}" style="width: 100%; text-align: left; min-height: 82px; border: none; border-bottom: 2px solid #e2ddd2; background: transparent; padding: 14px 0; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #1c1a17;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 21px; font-weight: 800;">{{ h.who }}</div>
+                <div style="font-size: 16px; color: #4a463d; margin-top: 2px;">{{ h.when }} &middot; {{ h.form }}</div>
+              </div>
+              <div style="flex: none; border: 2px solid {{ h.tagInk }}; color: {{ h.tagInk }}; background: {{ h.tagBg }}; border-radius: 10px; padding: 7px 10px; font-size: 15px; font-weight: 700;">{{ h.tag }}</div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ SURVEYS ============ -->
+    <sc-if value="{{ isSurveys }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 30px 20px 14px;">
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: -.02em;">Surveys on this phone</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 0 20px 16px; display: flex; flex-direction: column; gap: 10px;">
+          <sc-for list="{{ surveyRows }}" as="v" hint-placeholder-count="2">
+            <div style="border: 3px solid #ded9cd; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+              <div>
+                <div style="font-size: 21px; font-weight: 800;">{{ v.title }}</div>
+                <div style="font-size: 16px; color: #4a463d; margin-top: 2px;">{{ v.sub }}</div>
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <button type="button" onClick="{{ v.use }}" style="flex: 1; min-height: 58px; border: none; border-radius: 14px; background: {{ v.useBg }}; color: {{ v.useInk }}; font-size: 18px; font-weight: 700; cursor: pointer;">{{ v.useLabel }}</button>
+                <sc-if value="{{ v.removable }}" hint-placeholder-val="{{ false }}">
+                  <button type="button" onClick="{{ v.remove }}" style="min-height: 58px; padding: 0 16px; border: 3px solid #b3261e; border-radius: 14px; background: transparent; color: #b3261e; font-size: 18px; font-weight: 700; cursor: pointer;">Remove</button>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+          <button type="button" onClick="{{ openUpload }}" style="width: 100%; min-height: 84px; border: 3px dashed #ded9cd; border-radius: 18px; background: transparent; color: #1c1a17; font-size: 21px; font-weight: 700; cursor: pointer;">Add a survey</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ ME ============ -->
+    <sc-if value="{{ isMe }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 30px 20px 14px;">
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: -.02em;">Me</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 0 20px 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="border: 3px solid #1c1a17; border-radius: 18px; background: #fff; padding: 18px;">
+            <div style="font-size: 26px; font-weight: 800;">Meena Kumari</div>
+            <div style="font-size: 17px; color: #4a463d; margin-top: 4px;">Community health worker</div>
+            <div style="height: 2px; background: #e2ddd2; margin: 14px 0;"></div>
+            <sc-for list="{{ profileRows }}" as="p" hint-placeholder-count="3">
+              <div style="display: flex; justify-content: space-between; gap: 12px; padding: 7px 0;">
+                <div style="font-size: 16px; color: #4a463d;">{{ p.k }}</div>
+                <div style="font-size: 17px; font-weight: 700; text-align: right;">{{ p.v }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="border: 3px solid #ded9cd; border-radius: 18px; padding: 6px 16px;">
+            <sc-for list="{{ settingRows }}" as="g" hint-placeholder-count="3">
+              <button type="button" onClick="{{ g.toggle }}" style="width: 100%; min-height: 68px; border: none; border-bottom: 2px solid #ece8de; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #1c1a17; text-align: left;">
+                <div style="font-size: 18px; font-weight: 700;">{{ g.label }}</div>
+                <div style="flex: none; min-width: 78px; height: 44px; border: 3px solid #1c1a17; border-radius: 12px; background: {{ g.bg }}; color: {{ g.ink }}; font-size: 16px; font-weight: 800; display: flex; align-items: center; justify-content: center;">{{ g.value }}</div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="font-size: 15px; color: #6b6558; line-height: 1.4;">Your answers stay on this phone until they are sent to your office.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ SETUP ============ -->
+    <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 22px 20px 14px;">
+          <button type="button" onClick="{{ goToday }}" style="min-height: 48px; padding: 0 14px 0 10px; border: 2px solid #1c1a17; border-radius: 12px; background: transparent; font-size: 16px; font-weight: 700; color: #1c1a17; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <span style="width: 0; height: 0; border-right: 11px solid #1c1a17; border-top: 8px solid transparent; border-bottom: 8px solid transparent;"></span>
+            Back
+          </button>
+          <div style="font-size: 15px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #6b6558; margin-top: 14px;">Step 1 of 2</div>
+          <div style="font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 6px;">New interview</div>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 0 20px 18px; display: flex; flex-direction: column; gap: 26px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 20px; font-weight: 700;">Which survey?</div>
+            <sc-for list="{{ forms }}" as="f" hint-placeholder-count="2">
+              <button type="button" onClick="{{ f.pick }}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 74px; text-align: left; padding: 14px 16px; border-radius: 16px; border: {{ f.border }}; background: {{ f.bg }}; color: {{ f.ink }}; cursor: pointer;">
+                <div style="width: 26px; height: 26px; border-radius: 50%; border: 3px solid currentColor; flex: none; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 12px; height: 12px; border-radius: 50%; background: {{ f.dot }};"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                  <div style="font-size: 19px; font-weight: 700;">{{ f.title }}</div>
+                  <div style="font-size: 15px; opacity: .75;">{{ f.sub }}</div>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-size: 20px; font-weight: 700;">Which language?</div>
+            <sc-for list="{{ langs }}" as="l" hint-placeholder-count="3">
+              <button type="button" onClick="{{ l.pick }}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 68px; text-align: left; padding: 12px 16px; border-radius: 16px; border: {{ l.border }}; background: {{ l.bg }}; color: {{ l.ink }}; cursor: pointer;">
+                <div style="width: 26px; height: 26px; border-radius: 50%; border: 3px solid currentColor; flex: none; display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 12px; height: 12px; border-radius: 50%; background: {{ l.dot }};"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+                  <div style="font-size: 19px; font-weight: 700;">{{ l.name }}</div>
+                  <div style="font-size: 15px; opacity: .78;">{{ l.note }}</div>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="border: 3px solid #b06a00; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; background: #fff8ec;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 26px; height: 26px; background: #b06a00; color: #fff; font-weight: 800; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: none;">!</div>
+              <div style="font-size: 18px; font-weight: 700; color: #8a5200;">{{ limHeading }}</div>
+            </div>
+            <sc-for list="{{ limitations }}" as="lim" hint-placeholder-count="2">
+              <div style="font-size: 16px; line-height: 1.35; text-wrap: pretty;">{{ lim }}</div>
+            </sc-for>
+            <div style="font-size: 15px; color: #6b6558;">You can fill these in later on paper.</div>
+          </div>
+        </div>
+
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 14px 20px 24px; border-top: 2px solid #e2ddd2; background: #f7f5f0;">
+          <button type="button" onClick="{{ start }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #1c1a17; color: #f7f5f0; font-size: 27px; font-weight: 800; letter-spacing: .02em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 14px;">
+            <div style="width: 0; height: 0; border-left: 20px solid #f7f5f0; border-top: 13px solid transparent; border-bottom: 13px solid transparent;"></div>
+            Start
+          </button>
+          <div style="text-align: center; font-size: 15px; color: #6b6558; margin-top: 10px;">The phone asks the first question.</div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ INTERVIEW ============ -->
+    <sc-if value="{{ isInterview }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+
+        <div style="height: 62px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 18px; border-bottom: 2px solid #e2ddd2;">
+          <div style="font-size: 19px; font-weight: 800;">{{ progressText }}</div>
+          <div style="flex: 1; display: flex; gap: 3px;">
+            <sc-for list="{{ segments }}" as="s" hint-placeholder-count="9">
+              <div style="flex: 1; height: 10px; border-radius: 2px; background: {{ s.bg }};"></div>
+            </sc-for>
+          </div>
+          <button type="button" onClick="{{ openFix }}" style="min-width: 62px; height: 46px; border: 2px solid #1c1a17; background: transparent; border-radius: 12px; font-size: 16px; font-weight: 700; color: #1c1a17; cursor: pointer;">Fix</button>
+          <button type="button" onClick="{{ stop }}" style="width: 46px; height: 46px; border: 2px solid #1c1a17; background: transparent; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 14px; height: 14px; background: #1c1a17;"></div>
+          </button>
+        </div>
+
+        <div style="flex: 1; display: flex; flex-direction: {{ bodyDir }}; overflow: hidden;">
+
+        <div style="width: {{ bandW }}; height: {{ bandH }}; flex: none; background: {{ stateBg }}; color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 16px;">
+          <sc-if value="{{ isListening }}" hint-placeholder-val="{{ false }}">
+            <div style="width: 92px; height: 92px; border-radius: 50%; background: #fff; animation: ls-pulse 1.1s ease-in-out infinite;"></div>
+          </sc-if>
+          <sc-if value="{{ isSpeaking }}" hint-placeholder-val="{{ false }}">
+            <div style="width: 0; height: 0; border-left: 78px solid #fff; border-top: 48px solid transparent; border-bottom: 48px solid transparent;"></div>
+          </sc-if>
+          <sc-if value="{{ isThinking }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; gap: 16px; height: 92px; align-items: center;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #fff; animation: ls-dots .9s infinite;"></div>
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #fff; animation: ls-dots .9s .15s infinite;"></div>
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: #fff; animation: ls-dots .9s .3s infinite;"></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isYourTurn }}" hint-placeholder-val="{{ true }}">
+            <div style="width: 92px; height: 92px; border-radius: 50%; border: 14px solid #fff; animation: ls-ring 1.6s ease-out infinite;"></div>
+          </sc-if>
+          <div style="font-size: 44px; font-weight: 800; letter-spacing: .01em; text-transform: uppercase; line-height: 1;">{{ stateWord }}</div>
+          <div style="font-size: 18px; font-weight: 600; opacity: .92;">{{ stateHint }}</div>
+        </div>
+
+        <div style="flex: 1; min-width: 240px; overflow-y: auto; padding: 20px 20px 8px; display: flex; flex-direction: column; gap: 14px; justify-content: flex-start;">
+          <div style="margin: {{ middleJustify }};">
+            <div style="font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #6b6558; margin-bottom: 6px;">Question now</div>
+            <div style="font-size: 25px; font-weight: 700; line-height: 1.22; text-wrap: pretty;">{{ currentQ }}</div>
+          </div>
+          <sc-if value="{{ showPartial }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 22px; font-weight: 600; color: #1f7a3f; line-height: 1.25;">“{{ partial }}”</div>
+          </sc-if>
+          <sc-if value="{{ showLast }}" hint-placeholder-val="{{ true }}">
+            <div style="border: 3px solid #1c1a17; border-radius: 16px; padding: 12px 14px; background: #fff;">
+              <div style="font-size: 15px; font-weight: 700; color: #6b6558;">Written down &middot; {{ lastLabel }}</div>
+              <div style="font-size: 26px; font-weight: 800; margin-top: 2px;">{{ lastValue }}</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="flex: none; width: {{ holdW }}; padding: {{ holdPad }}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+          <sc-if value="{{ holdIsCircle }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onPointerDown="{{ holdStart }}" onPointerUp="{{ holdEnd }}" onPointerLeave="{{ holdEnd }}" onPointerCancel="{{ holdEnd }}" onContextMenu="{{ noMenu }}" style="width: 212px; height: 212px; border-radius: 50%; border: none; background: {{ holdBg }}; color: {{ holdInk }}; font-size: 25px; font-weight: 800; text-transform: uppercase; letter-spacing: .02em; cursor: pointer; touch-action: none; user-select: none; box-shadow: 0 10px 0 rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; line-height: 1.1;">
+              {{ holdLabel }}
+              <span style="font-size: 15px; font-weight: 600; text-transform: none; opacity: .85;">{{ holdSub }}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{ holdIsBar }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onPointerDown="{{ holdStart }}" onPointerUp="{{ holdEnd }}" onPointerLeave="{{ holdEnd }}" onPointerCancel="{{ holdEnd }}" onContextMenu="{{ noMenu }}" style="width: 100%; height: 150px; border-radius: 22px; border: none; background: {{ holdBg }}; color: {{ holdInk }}; font-size: 27px; font-weight: 800; text-transform: uppercase; cursor: pointer; touch-action: none; user-select: none; box-shadow: 0 10px 0 rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;">
+              {{ holdLabel }}
+              <span style="font-size: 15px; font-weight: 600; text-transform: none; opacity: .85;">{{ holdSub }}</span>
+            </button>
+          </sc-if>
+        </div>
+
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ REVIEW ============ -->
+    <sc-if value="{{ isReview }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 26px 20px 14px; border-bottom: 2px solid #e2ddd2;">
+          <div style="font-size: 30px; font-weight: 800; letter-spacing: -.01em;">Please check these</div>
+          <div style="font-size: 17px; color: #4a463d; margin-top: 4px;">Tap anything that is wrong.</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 8px 20px 16px; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ reviewRows }}" as="r" hint-placeholder-count="8">
+            <button type="button" onClick="{{ r.fix }}" style="width: 100%; text-align: left; min-height: 74px; border: none; border-bottom: 2px solid #e2ddd2; background: transparent; padding: 12px 0; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #1c1a17;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 16px; color: #4a463d; line-height: 1.3; text-wrap: pretty;">{{ r.q }}</div>
+                <div style="font-size: 24px; font-weight: 800; margin-top: 3px; color: {{ r.valueInk }};">{{ r.a }}</div>
+              </div>
+              <div style="font-size: 15px; font-weight: 700; border: 2px solid #1c1a17; border-radius: 10px; padding: 8px 10px; flex: none;">Fix</div>
+            </button>
+          </sc-for>
+        </div>
+        <div style="flex: none; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 14px 20px 26px; border-top: 2px solid #e2ddd2;">
+          <button type="button" onClick="{{ submit }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #1f7a3f; color: #fff; font-size: 26px; font-weight: 800; cursor: pointer;">All correct &middot; Save</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ DONE ============ -->
+    <sc-if value="{{ isDone }}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column;">
+        <div style="flex: 1; background: {{ doneBg }}; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px;">
+          <div style="width: 120px; height: 120px; border-radius: 50%; border: 12px solid #fff; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 46px; height: 24px; border-left: 12px solid #fff; border-bottom: 12px solid #fff; transform: rotate(-45deg) translate(4px,-6px);"></div>
+          </div>
+          <div style="font-size: 40px; font-weight: 800; text-align: center; line-height: 1.05;">{{ doneWord }}</div>
+          <div style="font-size: 19px; font-weight: 600; text-align: center; max-width: 300px; text-wrap: pretty;">{{ doneNote }}</div>
+        </div>
+        <div style="flex: none; max-width: {{ colW }}; width: 100%; margin: 0 auto; padding: 18px 20px 26px; display: flex; flex-direction: column; gap: 12px;">
+          <button type="button" onClick="{{ next }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #1c1a17; color: #f7f5f0; font-size: 26px; font-weight: 800; cursor: pointer;">Next interview</button>
+          <div style="display: flex; gap: 12px;">
+            <button type="button" onClick="{{ openReceipt }}" style="flex: 1; height: 62px; border: 3px solid #1c1a17; background: transparent; border-radius: 16px; font-size: 18px; font-weight: 700; color: #1c1a17; cursor: pointer;">See the record</button>
+            <sc-if value="{{ needsDownload }}" hint-placeholder-val="{{ false }}">
+              <button type="button" onClick="{{ noop }}" style="flex: 1; height: 62px; border: 3px solid #b06a00; background: #fff8ec; border-radius: 16px; font-size: 18px; font-weight: 700; color: #8a5200; cursor: pointer;">Save a copy</button>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ TAB BAR ============ -->
+    <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: none; display: flex; justify-content: center; border-top: {{ tabTop }}; border-bottom: {{ tabBottom }}; background: #f7f5f0;">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+          <button type="button" onClick="{{ t.go }}" style="flex: 1; max-width: {{ tabMax }}; min-height: 76px; border: none; border-top: 6px solid {{ t.mark }}; background: {{ t.bg }}; color: #1c1a17; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px;">
+            <div style="font-size: 17px; font-weight: {{ t.weight }};">{{ t.label }}</div>
+            <div style="font-size: 13px; font-weight: 700; color: #6b6558;">{{ t.badge }}</div>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ UPLOAD SHEET ============ -->
+    <sc-if value="{{ uploadOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; background: rgba(28,26,23,.55); display: flex; flex-direction: column; justify-content: flex-end;">
+        <button type="button" onClick="{{ closeUpload }}" style="flex: 1; border: none; background: transparent; cursor: pointer;"></button>
+        <div style="background: #f7f5f0; border-radius: 26px 26px 0 0; padding: 22px 20px 26px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="font-size: 26px; font-weight: 800;">Add a survey</div>
+
+          <sc-if value="{{ uploadIdle }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="font-size: 17px; color: #4a463d; line-height: 1.35; text-wrap: pretty;">Pick the survey file your office sent you. It ends in <strong>.xlsx</strong>.</div>
+              <input type="file" accept=".xlsx" ref="{{ fileRef }}" onChange="{{ onFile }}" style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;" />
+              <button type="button" onClick="{{ chooseFile }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #1c1a17; color: #f7f5f0; font-size: 24px; font-weight: 800; cursor: pointer;">Choose a file</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ uploadBusy }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 16px; min-height: 84px;">
+              <div style="display: flex; gap: 12px;">
+                <div style="width: 20px; height: 20px; border-radius: 50%; background: #b06a00; animation: ls-dots .9s infinite;"></div>
+                <div style="width: 20px; height: 20px; border-radius: 50%; background: #b06a00; animation: ls-dots .9s .15s infinite;"></div>
+                <div style="width: 20px; height: 20px; border-radius: 50%; background: #b06a00; animation: ls-dots .9s .3s infinite;"></div>
+              </div>
+              <div style="font-size: 20px; font-weight: 700;">Reading the survey…</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ uploadOk }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="border: 3px solid #1f7a3f; border-radius: 16px; background: #fff; padding: 14px 16px;">
+                <div style="font-size: 15px; font-weight: 700; color: #1f7a3f; letter-spacing: .1em; text-transform: uppercase;">Ready to use</div>
+                <div style="font-size: 22px; font-weight: 800; margin-top: 3px;">{{ uploadTitle }}</div>
+                <div style="font-size: 16px; color: #4a463d; margin-top: 2px;">{{ uploadSub }}</div>
+              </div>
+              <button type="button" onClick="{{ useUpload }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #1f7a3f; color: #fff; font-size: 24px; font-weight: 800; cursor: pointer;">Use this survey</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ uploadBad }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <div style="border: 3px solid #b3261e; border-radius: 16px; background: #fff; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start;">
+                <div style="width: 26px; height: 26px; background: #b3261e; color: #fff; font-weight: 800; font-size: 18px; display: flex; align-items: center; justify-content: center; flex: none;">!</div>
+                <div style="font-size: 18px; font-weight: 600; line-height: 1.3; text-wrap: pretty;">{{ uploadError }}</div>
+              </div>
+              <button type="button" onClick="{{ retryUpload }}" style="width: 100%; height: 76px; border: 3px solid #1c1a17; border-radius: 18px; background: transparent; font-size: 22px; font-weight: 800; color: #1c1a17; cursor: pointer;">Choose another file</button>
+            </div>
+          </sc-if>
+
+          <button type="button" onClick="{{ closeUpload }}" style="width: 100%; height: 62px; border: none; border-radius: 16px; background: #e2ddd2; font-size: 19px; font-weight: 700; color: #1c1a17; cursor: pointer;">Not now</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ FIX SHEET ============ -->
+    <sc-if value="{{ fixOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; background: rgba(28,26,23,.55); display: flex; flex-direction: column; justify-content: flex-end;">
+        <button type="button" onClick="{{ closeFix }}" style="flex: 1; border: none; background: transparent; cursor: pointer;"></button>
+        <div style="background: #f7f5f0; border-radius: 26px 26px 0 0; padding: 22px 20px 26px; max-height: 78%; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 26px; font-weight: 800;">Which answer is wrong?</div>
+          <div style="font-size: 16px; color: #4a463d;">The phone will ask that question again.</div>
+          <div style="overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+            <sc-for list="{{ fixRows }}" as="r" hint-placeholder-count="3">
+              <button type="button" onClick="{{ r.fix }}" style="width: 100%; text-align: left; min-height: 70px; border: 3px solid #1c1a17; border-radius: 16px; background: #fff; padding: 10px 14px; cursor: pointer; color: #1c1a17;">
+                <div style="font-size: 15px; color: #4a463d; line-height: 1.3;">{{ r.q }}</div>
+                <div style="font-size: 22px; font-weight: 800;">{{ r.a }}</div>
+              </button>
+            </sc-for>
+          </div>
+          <button type="button" onClick="{{ closeFix }}" style="width: 100%; height: 68px; border: none; border-radius: 16px; background: #e2ddd2; font-size: 20px; font-weight: 700; color: #1c1a17; cursor: pointer;">Everything is fine</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ TROUBLE ============ -->
+    <sc-if value="{{ hasTrouble }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; background: {{ troubleBg }}; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 28px;">
+        <div style="width: 108px; height: 108px; background: #fff; color: {{ troubleBg }}; font-size: 74px; font-weight: 800; display: flex; align-items: center; justify-content: center; line-height: 1;">!</div>
+        <div style="font-size: 40px; font-weight: 800; text-transform: uppercase; text-align: center; line-height: 1;">{{ troubleWord }}</div>
+        <div style="font-size: 23px; font-weight: 600; text-align: center; line-height: 1.3; max-width: 300px; text-wrap: pretty;">{{ troubleBody }}</div>
+        <button type="button" onClick="{{ clearTrouble }}" style="width: 100%; height: 84px; border: none; border-radius: 20px; background: #fff; color: #1c1a17; font-size: 26px; font-weight: 800; cursor: pointer; margin-top: 8px;">{{ troubleAction }}</button>
+      </div>
+    </sc-if>
+
+    <!-- ============ RECEIPT ============ -->
+    <sc-if value="{{ receiptOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; background: #f7f5f0; display: flex; flex-direction: column;">
+        <div style="flex: none; height: 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 2px solid #e2ddd2;">
+          <div style="font-size: 20px; font-weight: 800;">The record</div>
+          <button type="button" onClick="{{ closeReceipt }}" style="min-width: 72px; height: 46px; border: 2px solid #1c1a17; background: transparent; border-radius: 12px; font-size: 17px; font-weight: 700; color: #1c1a17; cursor: pointer;">Close</button>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding: 18px;">
+          <div style="background: #fff; border: 2px solid #d9d4c9; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <div style="font-size: 22px; font-weight: 800;">{{ receiptWho }}</div>
+              <div style="font-size: 16px; font-weight: 600; color: #1c1a17; margin-top: 2px;">{{ receiptTitle }}</div>
+              <div style="font-size: 15px; color: #4a463d; margin-top: 3px;">{{ receiptMeta }}</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <sc-for list="{{ receiptStats }}" as="s" hint-placeholder-count="3">
+                <div style="flex: 1; border: 2px solid #d9d4c9; padding: 8px 10px;">
+                  <div style="font-size: 26px; font-weight: 800;">{{ s.n }}</div>
+                  <div style="font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: #4a463d;">{{ s.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <sc-for list="{{ receiptEvents }}" as="e" hint-placeholder-count="6">
+                <div style="border-top: 2px solid #ece8de; padding-top: 10px;">
+                  <div style="font-size: 15px; color: #4a463d; line-height: 1.3; text-wrap: pretty;">{{ e.q }}</div>
+                  <div style="font-size: 19px; font-weight: 800; margin-top: 2px;">{{ e.a }}</div>
+                  <div style="font-size: 15px; color: #4a463d; margin-top: 3px; font-style: italic;">heard: “{{ e.heard }}”</div>
+                  <sc-if value="{{ e.hasRule }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 14px; color: #6b6558; margin-top: 2px;">{{ e.rule }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+        <div style="flex: none; padding: 14px 18px 22px; border-top: 2px solid #e2ddd2;">
+          <button type="button" onClick="{{ print }}" style="width: 100%; height: 70px; border: none; border-radius: 16px; background: #1c1a17; color: #f7f5f0; font-size: 21px; font-weight: 800; cursor: pointer;">Print / save as PDF</button>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ showDemo }}" hint-placeholder-val="{{ true }}">
+    <div style="width: 390px; max-width: 100%; display: flex; flex-direction: column; gap: 8px; color: #a9a294;">
+      <div style="font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;">Demo controls &mdash; not part of the app</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <sc-for list="{{ demoButtons }}" as="d" hint-placeholder-count="8">
+          <button type="button" onClick="{{ d.go }}" style="min-height: 36px; padding: 0 12px; border: 1px solid #55504704; border-color: rgba(255,255,255,.22); border-radius: 8px; background: rgba(255,255,255,.06); color: #d8d2c5; font-size: 13px; font-weight: 600; cursor: pointer;">{{ d.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;device&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;phone&quot;,&quot;tablet&quot;,&quot;laptop&quot;],&quot;default&quot;:&quot;phone&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Frame&quot;},&quot;startLanguage&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en&quot;,&quot;hi&quot;,&quot;es&quot;],&quot;default&quot;:&quot;en&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Interview&quot;},&quot;holdShape&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;circle&quot;,&quot;bar&quot;],&quot;default&quot;:&quot;circle&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Interview&quot;},&quot;showDemoControls&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+const INK = '#1c1a17', GREEN = '#1f7a3f', BLUE = '#1e5fbf', AMBER = '#b06a00', RED = '#b3261e';
+
+const Q = [
+  { name: 'consent', type: 'consent',
+    en: 'Do you agree to answer a few questions about your health today?',
+    hi: 'क्या आप आज अपने स्वास्थ्य के बारे में कुछ सवालों के जवाब देने को तैयार हैं?',
+    es: '¿Acepta responder unas preguntas sobre su salud hoy?',
+    heard: 'Yes, that is fine', display: 'Yes, agreed' },
+  { name: 'name', en: 'Who am I speaking with?', hi: 'मैं किससे बात कर रही हूँ?', es: '¿Con quién hablo?',
+    heard: 'My name is Sunita Devi', display: 'Sunita Devi' },
+  { name: 'age', en: 'How old are you?', hi: 'आपकी उम्र क्या है?', es: '¿Cuántos años tiene?',
+    heard: 'I am twenty eight', display: '28 years' },
+  { name: 'pregnant', en: 'Are you pregnant at the moment?', hi: 'क्या आप इस समय गर्भवती हैं?', es: '¿Está embarazada ahora?',
+    heard: 'Yes, I am', display: 'Yes' },
+  { name: 'months', en: 'How many months pregnant are you?', hi: 'आप कितने महीने की गर्भवती हैं?', es: '¿De cuántos meses está?',
+    heard: 'Five months now', display: '5 months', rule: 'Asked because the answer above was yes' },
+  { name: 'visits', en: 'How many check-ups have you had so far?', hi: 'अब तक आपकी कितनी जाँच हुई है?', es: '¿Cuántos controles ha tenido?',
+    heard: 'Three times', display: '3' },
+  { name: 'iron', en: 'Are you taking the iron tablets?', hi: 'क्या आप आयरन की गोलियाँ ले रही हैं?', es: '¿Toma las pastillas de hierro?',
+    heard: 'Yes, every day after food', display: 'Yes, daily' },
+  { name: 'facility', en: 'Which health centre is closest to your home?', hi: 'आपके घर के सबसे नज़दीक कौन सा स्वास्थ्य केंद्र है?', es: '¿Qué centro de salud está más cerca?',
+    heard: 'Rampur, the one near the school', display: 'Rampur health centre' },
+  { name: 'phone', en: 'What number can the nurse call you on?', hi: 'नर्स आपको किस नंबर पर फ़ोन कर सकती है?', es: '¿A qué número puede llamarla la enfermera?',
+    heard: 'Nine eight seven six five four seven seven one two', display: '98765 47712' }
+];
+
+const LANGS = [
+  { id: 'en', name: 'English', note: 'Speaks and understands it' },
+  { id: 'hi', name: 'हिन्दी  Hindi', note: 'Understands Hindi, answers in English' },
+  { id: 'es', name: 'Español  Spanish', note: 'Speaks and understands it' }
+];
+
+class Component extends DCLogic {
+  state = {
+    device: null,
+    screen: 'today', tab: 'today', bigText: false, sound: true, dataSaver: false,
+    history: [
+      { who: 'Rekha Bai', when: 'Today · 10:24', form: 'Maternal follow-up', status: 'sent', mins: '3 min 48 s',
+        answers: { consent: 'Yes, agreed', name: 'Rekha Bai', age: '24 years', pregnant: 'Yes', months: '7 months', visits: '4', iron: 'Yes, daily', facility: 'Rampur health centre', phone: '99120 34518' },
+        heard: { consent: 'Yes, that is fine', name: 'I am Rekha Bai', age: 'Twenty four', pregnant: 'Yes', months: 'Seven months', visits: 'Four times', iron: 'Yes I take them', facility: 'Rampur', phone: 'Nine nine one two zero three four five one eight' } },
+      { who: 'Asha Kumari', when: 'Today · 09:51', form: 'Maternal follow-up', status: 'sent', mins: '5 min 02 s',
+        answers: { consent: 'Yes, agreed', name: 'Asha Kumari', age: '31 years', pregnant: 'No', visits: '2', iron: 'No', facility: 'Bhagwanpur centre', phone: '98110 77420' },
+        heard: { consent: 'Haan, theek hai', name: 'Asha Kumari', age: 'I am thirty one', pregnant: 'No, not now', visits: 'Two', iron: 'I finished them', facility: 'Bhagwanpur', phone: 'Nine eight one one zero seven seven four two zero' } },
+      { who: 'Laxmi Devi', when: 'Yesterday · 16:07', form: 'Maternal follow-up', status: 'waiting', mins: '4 min 31 s',
+        answers: { consent: 'Yes, agreed', name: 'Laxmi Devi', age: '19 years', pregnant: 'Yes', months: '3 months', visits: '1', iron: 'Yes, daily', facility: 'Rampur health centre', phone: '97880 11234' },
+        heard: { consent: 'Yes, you can ask', name: 'Laxmi Devi from the next lane', age: 'Nineteen', pregnant: 'Yes', months: 'Three months', visits: 'Only one', iron: 'Yes every day', facility: 'Rampur', phone: 'Nine seven eight eight zero one one two three four' } },
+      { who: 'Pushpa Yadav', when: 'Yesterday · 14:32', form: 'Maternal follow-up', status: 'sent', mins: '3 min 12 s',
+        answers: { consent: 'Yes, agreed', name: 'Pushpa Yadav', age: '27 years', pregnant: 'No', visits: '5', iron: 'Yes, daily', facility: 'Rampur health centre', phone: '98220 45590' },
+        heard: { consent: 'Haan, poochh lijiye', name: 'Pushpa Yadav', age: 'Twenty seven years', pregnant: 'No', visits: 'Five', iron: 'Yes', facility: 'The Rampur one', phone: 'Nine eight two two zero four five five nine zero' } },
+      { who: 'Kiran Bala', when: 'Mon · 11:18', form: 'Maternal follow-up', status: 'sent', mins: '2 min 40 s',
+        answers: { consent: 'Yes, agreed', name: 'Kiran Bala', age: '35 years', pregnant: 'No', visits: '0', iron: 'No', facility: 'Bhagwanpur centre', phone: '90045 88123' },
+        heard: { consent: 'Yes, that is fine', name: 'Kiran Bala', age: 'Thirty five', pregnant: 'No', visits: 'None yet', iron: 'No', facility: 'Bhagwanpur', phone: 'Nine zero zero four five eight eight one two three' } }
+    ],
+    openRecord: null,
+    phase: 'idle', i: 0, held: false, partial: '',
+    answers: {}, lang: null, form: 'demo', fixOpen: false, receiptOpen: false,
+    trouble: null, saved: 'remote', pendingFix: null,
+    uploadOpen: false, uploadStage: 'idle', uploaded: null, uploadError: ''
+  };
+  fileRef = React.createRef();
+
+  componentWillUnmount() { this.clear(); }
+  clear() { (this.timers || []).forEach(clearTimeout); clearInterval(this.typer); this.timers = []; }
+  later(ms, fn) { this.timers = this.timers || []; this.timers.push(setTimeout(fn, ms)); }
+
+  lang() {
+    const l = this.state.lang || this.props.startLanguage || 'en';
+    const u = this.state.form === 'upload' && this.state.uploaded ? this.state.uploaded.languages : null;
+    return u && u.indexOf(l) === -1 ? u[0] : l;
+  }
+  label(q) { return q ? (q[this.lang()] || q.en) : ''; }
+
+  visible() {
+    return Q.filter(q => q.name !== 'months' || this.state.answers.pregnant === 'Yes' || this.state.i <= Q.findIndex(x => x.name === 'pregnant'));
+  }
+
+  onFile = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const ok = /\.xlsx$/i.test(f.name) && f.size < 8 * 1024 * 1024;
+    this.setState({ uploadStage: 'busy' });
+    this.later(1400, () => {
+      if (!ok) {
+        this.setState({ uploadStage: 'bad', uploadError: /\.xlsx$/i.test(f.name)
+          ? 'That file is too big for the phone. Ask your office for a smaller one.'
+          : 'This is not a survey file. Look for one ending in .xlsx.' });
+        return;
+      }
+      const title = f.name.replace(/\.xlsx$/i, '').replace(/[_-]+/g, ' ');
+      this.setState({
+        uploadStage: 'ok',
+        uploaded: { title: title.charAt(0).toUpperCase() + title.slice(1), count: 12,
+          languages: ['en', 'hi'], langs: 'English, हिन्दी',
+          limitations: ['One question asks you to take a photo. The phone will skip it.'] }
+      });
+    });
+  };
+
+  begin = () => {
+    this.clear();
+    this.setState({ screen: 'interview', phase: 'speaking', i: 0, answers: {}, partial: '', trouble: null });
+    this.later(1700, () => this.setState({ phase: 'listening_wait' }));
+  };
+
+  holdStart = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (this.state.phase === 'thinking') return;
+    const q = Q[this.state.i];
+    this.clear();
+    this.setState({ phase: 'listening', held: true, partial: '' });
+    const words = (q ? q.heard : '').split(' ');
+    let n = 0;
+    this.typer = setInterval(() => {
+      n += 1;
+      this.setState({ partial: words.slice(0, n).join(' ') });
+      if (n >= words.length) clearInterval(this.typer);
+    }, 260);
+  };
+
+  holdEnd = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!this.state.held) return;
+    clearInterval(this.typer);
+    const q = Q[this.state.i];
+    this.setState({ held: false, phase: 'thinking' });
+    this.later(750, () => {
+      const answers = Object.assign({}, this.state.answers);
+      answers[q.name] = q.display;
+      const fix = this.state.pendingFix;
+      let nextIndex = this.state.i + 1;
+      if (fix !== null && fix !== undefined) nextIndex = fix.resume;
+      while (Q[nextIndex] && Q[nextIndex].name === 'months' && answers.pregnant !== 'Yes') nextIndex += 1;
+      const done = nextIndex >= Q.length;
+      this.setState({ answers, partial: '', pendingFix: null, i: done ? this.state.i : nextIndex, phase: done ? 'idle' : 'speaking', screen: done ? 'review' : 'interview' });
+      if (!done) this.later(1600, () => this.setState({ phase: 'listening_wait' }));
+    });
+  };
+
+  askAgain = (idx, fromReview) => {
+    this.clear();
+    const resume = fromReview ? Q.length : this.state.i;
+    this.setState({ screen: 'interview', fixOpen: false, i: idx, phase: 'speaking', partial: '', pendingFix: { resume } });
+    this.later(1600, () => this.setState({ phase: 'listening_wait' }));
+  };
+
+  renderVals() {
+    const s = this.state, lang = this.lang();
+    const phase = s.phase;
+    const answeredNames = Object.keys(s.answers);
+    const list = Q.filter(q => q.name !== 'months' || s.answers.pregnant === 'Yes');
+    const cur = Q[s.i];
+
+    const stateMap = {
+      speaking: { w: 'Speaking', bg: BLUE, hint: 'The phone is asking the question' },
+      listening: { w: 'Listening', bg: GREEN, hint: 'Keep holding while she answers' },
+      thinking: { w: 'One moment', bg: AMBER, hint: 'Writing the answer down' },
+      listening_wait: { w: 'Her turn', bg: INK, hint: 'Hold the button, point the phone at her' },
+      idle: { w: 'Her turn', bg: INK, hint: 'Hold the button, point the phone at her' }
+    };
+    const st = stateMap[phase] || stateMap.idle;
+
+    const lastName = answeredNames[answeredNames.length - 1];
+    const lastQ = Q.find(q => q.name === lastName);
+
+    const segments = Q.map(q => ({
+      bg: s.answers[q.name] ? INK : (cur && q.name === cur.name ? '#b06a00' : '#ded9cd')
+    }));
+
+    const troubleMap = {
+      mic: { word: 'No sound', body: 'The phone cannot hear. Let this app use the microphone, then hold the button again.', action: 'Try again', bg: RED },
+      net: { word: 'No signal', body: 'The answers are safe on this phone. They will be sent when you have signal.', action: 'Carry on', bg: AMBER },
+      stalled: { word: 'Paused', body: 'The phone stopped talking. Tap to carry on from the last question.', action: 'Carry on', bg: AMBER }
+    };
+    const tr = s.trouble ? troubleMap[s.trouble] : null;
+
+    const mkRow = (q, fromReview) => ({
+      q: this.label(q), a: s.answers[q.name] || 'Not answered',
+      valueInk: s.answers[q.name] ? INK : '#8a5200',
+      fix: () => this.askAgain(Q.findIndex(x => x.name === q.name), fromReview)
+    });
+
+    const answeredList = list.filter(q => s.answers[q.name]);
+    const rec = s.openRecord;
+    const recAnswers = rec ? rec.answers : s.answers;
+    const recRows = rec
+      ? Q.filter(q => q.name !== 'months' || !!rec.answers.months)
+      : list;
+
+    const holdShape = this.props.holdShape || 'circle';
+    const holding = phase === 'listening';
+
+    const dev = s.device || this.props.device || 'phone';
+    const D = {
+      phone: { w: '390px', h: '844px', r: '34px', dir: 'column', bodyDir: 'column',
+        bandW: '100%', bandH: '252px', holdW: '100%', holdPad: '0 20px 26px',
+        mj: '0', col: 'none', tabTop: '2px solid #1c1a17', tabBottom: 'none', tabMax: 'none' },
+      tablet: { w: '1024px', h: '768px', r: '22px', dir: 'column', bodyDir: 'row',
+        bandW: '30%', bandH: '100%', holdW: '31%', holdPad: '20px',
+        mj: 'auto 0', col: '720px', tabTop: '2px solid #1c1a17', tabBottom: 'none', tabMax: '200px' },
+      laptop: { w: '1280px', h: '800px', r: '14px', dir: 'column-reverse', bodyDir: 'row',
+        bandW: '29%', bandH: '100%', holdW: '30%', holdPad: '24px',
+        mj: 'auto 0', col: '860px', tabTop: 'none', tabBottom: '2px solid #1c1a17', tabMax: '190px' }
+    }[dev] || {};
+
+    return {
+      devices: [
+        { key: 'phone', label: 'Phone · 390' },
+        { key: 'tablet', label: 'Tablet · 1024' },
+        { key: 'laptop', label: 'Laptop · 1280' }
+      ].map(d => ({
+        label: d.label, go: () => this.setState({ device: d.key }),
+        border: dev === d.key ? '#f7f5f0' : 'rgba(255,255,255,.25)',
+        bg: dev === d.key ? '#f7f5f0' : 'transparent',
+        ink: dev === d.key ? '#1c1a17' : '#d8d2c5'
+      })),
+      frameW: D.w, frameH: D.h, frameR: D.r, frameDir: D.dir,
+      bodyDir: D.bodyDir, bandW: D.bandW, bandH: D.bandH,
+      holdW: D.holdW, holdPad: D.holdPad, middleJustify: D.mj,
+      colW: D.col, tabTop: D.tabTop, tabBottom: D.tabBottom, tabMax: D.tabMax,
+
+      isToday: s.screen === 'today' && s.tab === 'today',
+      isHistory: s.screen === 'today' && s.tab === 'history',
+      isSurveys: s.screen === 'today' && s.tab === 'surveys',
+      isMe: s.screen === 'today' && s.tab === 'me',
+      showTabs: s.screen === 'today',
+      tabs: [
+        { key: 'today', label: 'Today', badge: '' },
+        { key: 'history', label: 'Past', badge: String(s.history.length) },
+        { key: 'surveys', label: 'Surveys', badge: String(s.uploaded ? 2 : 1) },
+        { key: 'me', label: 'Me', badge: '' }
+      ].map(t => ({
+        label: t.label, badge: t.badge, go: () => this.setState({ tab: t.key, screen: 'today' }),
+        mark: s.tab === t.key ? INK : 'transparent', bg: s.tab === t.key ? '#fff' : 'transparent',
+        weight: s.tab === t.key ? 800 : 600
+      })),
+      goToday: () => this.setState({ screen: 'today', tab: 'today' }),
+      goSetup: () => this.setState({ screen: 'setup' }),
+      openUpload: () => this.setState({ uploadOpen: true, uploadStage: 'idle' }),
+
+      todayDate: 'Friday 11 September',
+      todayCount: s.history.filter(h => h.when.indexOf('Today') === 0).length,
+      weekCount: s.history.length,
+      hasWaiting: s.history.filter(h => h.status === 'waiting').length > 0,
+      waitingHeading: (function (n) { return n === 1 ? '1 interview waiting to send' : n + ' interviews waiting to send'; })(s.history.filter(h => h.status === 'waiting').length),
+      sendAll: () => this.setState({ history: s.history.map(h => ({ who: h.who, when: h.when, form: h.form, status: 'sent' })) }),
+      activeFormTitle: s.form === 'upload' && s.uploaded ? s.uploaded.title : 'Maternal follow-up',
+      activeFormSub: s.form === 'upload' && s.uploaded ? s.uploaded.count + ' questions' : '9 questions · English, हिन्दी, Español',
+
+      historySummary: (function (n) { return n + ' kept on this phone'; })(s.history.length),
+      historyRows: s.history.map(h => ({
+        who: h.who, when: h.when, form: h.form,
+        tag: h.status === 'sent' ? 'Sent' : 'Waiting',
+        tagInk: h.status === 'sent' ? GREEN : AMBER,
+        tagBg: h.status === 'sent' ? '#fff' : '#fff8ec',
+        open: () => this.setState({ receiptOpen: true, openRecord: h })
+      })),
+
+      surveyRows: [{ title: 'Maternal follow-up', sub: 'On this phone · 9 questions', key: 'demo', removable: false }]
+        .concat(s.uploaded ? [{ title: s.uploaded.title, sub: 'From a file · ' + s.uploaded.count + ' questions', key: 'upload', removable: true }] : [])
+        .map(v => ({
+          title: v.title, sub: v.sub, removable: v.removable,
+          use: () => this.setState({ form: v.key, screen: 'setup' }),
+          useLabel: s.form === v.key ? 'In use · start' : 'Use this one',
+          useBg: s.form === v.key ? INK : '#e2ddd2', useInk: s.form === v.key ? '#f7f5f0' : INK,
+          remove: () => this.setState({ uploaded: null, form: 'demo' })
+        })),
+
+      profileRows: [
+        { k: 'Area', v: 'Rampur block, ward 4' },
+        { k: 'Office', v: 'Sahyog Health Trust' },
+        { k: 'Phone', v: '98765 10022' },
+        { k: 'Worker number', v: 'CHW-4471' }
+      ],
+      settingRows: [
+        { label: 'Keep the screen on', value: s.bigText ? 'On' : 'Off', bg: s.bigText ? INK : 'transparent', ink: s.bigText ? '#f7f5f0' : INK, toggle: () => this.setState({ bigText: !s.bigText }) },
+        { label: 'Sound out loud', value: s.sound ? 'On' : 'Off', bg: s.sound ? INK : 'transparent', ink: s.sound ? '#f7f5f0' : INK, toggle: () => this.setState({ sound: !s.sound }) },
+        { label: 'Use less data', value: s.dataSaver ? 'On' : 'Off', bg: s.dataSaver ? INK : 'transparent', ink: s.dataSaver ? '#f7f5f0' : INK, toggle: () => this.setState({ dataSaver: !s.dataSaver }) }
+      ],
+
+      isSetup: s.screen === 'setup', isInterview: s.screen === 'interview',
+      isReview: s.screen === 'review', isDone: s.screen === 'done',
+
+      forms: [
+        { title: 'Maternal follow-up', sub: 'Ready on this phone', pick: () => this.setState({ form: 'demo' }),
+          border: s.form === 'demo' ? '3px solid ' + INK : '3px solid #ded9cd', bg: s.form === 'demo' ? '#fff' : 'transparent',
+          ink: INK, dot: s.form === 'demo' ? INK : 'transparent' },
+        s.uploaded ? {
+          title: s.uploaded.title, sub: 'From a file · ' + s.uploaded.count + ' questions',
+          pick: () => this.setState({ form: 'upload' }),
+          border: s.form === 'upload' ? '3px solid ' + INK : '3px solid #ded9cd', bg: s.form === 'upload' ? '#fff' : 'transparent',
+          ink: INK, dot: s.form === 'upload' ? INK : 'transparent'
+        } : null,
+        {
+          title: s.uploaded ? 'Add another survey' : 'Add a survey', sub: 'Open a file your office sent',
+          pick: () => this.setState({ uploadOpen: true, uploadStage: 'idle' }),
+          border: '3px dashed #ded9cd', bg: 'transparent', ink: INK, dot: 'transparent'
+        }
+      ].filter(Boolean),
+      uploadOpen: s.uploadOpen,
+      uploadIdle: s.uploadStage === 'idle', uploadBusy: s.uploadStage === 'busy',
+      uploadOk: s.uploadStage === 'ok', uploadBad: s.uploadStage === 'bad',
+      uploadTitle: s.uploaded ? s.uploaded.title : '',
+      uploadSub: s.uploaded ? s.uploaded.count + ' questions · ' + s.uploaded.langs : '',
+      uploadError: s.uploadError,
+      fileRef: this.fileRef,
+      chooseFile: () => { if (this.fileRef.current) this.fileRef.current.click(); },
+      onFile: this.onFile,
+      retryUpload: () => { this.setState({ uploadStage: 'idle', uploadError: '' }); },
+      useUpload: () => this.setState({ uploadOpen: false, form: 'upload' }),
+      closeUpload: () => this.setState({ uploadOpen: false }),
+      langs: LANGS.filter(l => !(s.form === 'upload' && s.uploaded) || s.uploaded.languages.indexOf(l.id) !== -1).map(l => ({
+        name: l.name, note: l.note, pick: () => this.setState({ lang: l.id }),
+        border: lang === l.id ? '3px solid ' + INK : '3px solid #ded9cd', bg: lang === l.id ? '#fff' : 'transparent',
+        ink: INK, dot: lang === l.id ? INK : 'transparent'
+      })),
+      limHeading: (function (n) { return n === 1 ? '1 question the phone cannot ask' : n + ' questions the phone cannot ask'; })(s.form === 'upload' && s.uploaded ? s.uploaded.limitations.length : 2),
+      limitations: s.form === 'upload' && s.uploaded ? s.uploaded.limitations : [
+        'The question about the child\u2019s weight needs a number pad \u2014 the phone will skip it.',
+        'One question only appears for twins. The phone will not ask it.'
+      ],
+      start: this.begin,
+
+      progressText: (s.i + 1) + ' of ' + Q.length,
+      segments,
+      stateWord: st.w, stateBg: st.bg, stateHint: st.hint,
+      isListening: phase === 'listening', isSpeaking: phase === 'speaking',
+      isThinking: phase === 'thinking', isYourTurn: phase === 'listening_wait' || phase === 'idle',
+      currentQ: this.label(cur),
+      showPartial: phase === 'listening' && !!s.partial, partial: s.partial,
+      showLast: phase !== 'listening' && !!lastQ,
+      lastLabel: lastQ ? this.label(lastQ) : '', lastValue: lastQ ? s.answers[lastQ.name] : '',
+      holdIsCircle: holdShape === 'circle', holdIsBar: holdShape === 'bar',
+      holdBg: holding ? GREEN : INK, holdInk: '#f7f5f0',
+      holdLabel: holding ? 'Listening' : 'Hold to talk',
+      holdSub: holding ? 'Let go when she stops' : 'Point the phone at her',
+      holdStart: this.holdStart, holdEnd: this.holdEnd,
+      noMenu: (e) => e.preventDefault(),
+      openFix: () => this.setState({ fixOpen: true }),
+      closeFix: () => this.setState({ fixOpen: false }),
+      fixOpen: s.fixOpen,
+      fixRows: answeredList.slice(-4).reverse().map(q => mkRow(q, false)),
+      stop: () => this.setState({ screen: 'review', phase: 'idle', fixOpen: false }),
+
+      reviewRows: list.map(q => mkRow(q, true)),
+      submit: () => {
+        this.clear();
+        const who = s.answers.name || 'No name given';
+        const heard = {};
+        Q.forEach(q => { if (s.answers[q.name]) heard[q.name] = q.heard; });
+        const entry = {
+          who: who, when: 'Today · 11:06', mins: '4 min 12 s',
+          form: s.form === 'upload' && s.uploaded ? s.uploaded.title : 'Maternal follow-up',
+          status: s.saved === 'remote' ? 'sent' : 'waiting',
+          answers: Object.assign({}, s.answers), heard: heard
+        };
+        this.setState({ screen: 'done', fixOpen: false, history: [entry].concat(s.history) });
+      },
+
+      doneBg: s.saved === 'remote' ? GREEN : AMBER,
+      doneWord: s.saved === 'remote' ? 'Saved' : 'Saved on this phone',
+      doneNote: s.saved === 'remote' ? 'Sent to your office. Sunita Devi, 9 answers.' : 'No signal yet. It will be sent on its own. Keep a copy to be safe.',
+      needsDownload: s.saved !== 'remote',
+      next: () => this.setState({ screen: 'today', tab: 'today', answers: {}, i: 0, phase: 'idle', lang: s.lang, fixOpen: false, receiptOpen: false, trouble: null }),
+      noop: () => {},
+
+      hasTrouble: !!tr, troubleWord: tr ? tr.word : '', troubleBody: tr ? tr.body : '',
+      troubleAction: tr ? tr.action : '', troubleBg: tr ? tr.bg : RED,
+      clearTrouble: () => this.setState({ trouble: null }),
+
+      receiptOpen: s.receiptOpen,
+      openReceipt: () => this.setState({ receiptOpen: true }),
+      closeReceipt: () => this.setState({ receiptOpen: false, openRecord: null }),
+      print: () => window.print(),
+      receiptTitle: rec ? rec.form : (s.form === 'upload' && s.uploaded ? s.uploaded.title : 'Maternal follow-up'),
+      receiptWho: recAnswers.name || 'No name given',
+      receiptMeta: LANGS.filter(l => l.id === lang).map(l => l.name.split('  ')[0]).join('')
+        + ' · ' + (rec ? rec.when : 'Today · 11:06') + ' · ' + (rec ? rec.mins : '4 min 12 s'),
+      receiptStats: [
+        { n: recRows.filter(r => !!recAnswers[r.name]).length, label: 'Answered' },
+        { n: recRows.filter(r => !recAnswers[r.name]).length, label: 'Skipped' },
+        { n: rec ? 0 : 1, label: 'Fixed' }
+      ],
+      receiptEvents: recRows.map(q => ({
+        q: this.label(q), a: recAnswers[q.name] || 'Not asked',
+        heard: rec ? (rec.heard[q.name] || '—') : q.heard,
+        hasRule: !!q.rule && !!recAnswers[q.name], rule: q.rule || ''
+      })),
+
+      showDemo: this.props.showDemoControls !== false,
+      demoButtons: [
+        { label: 'Home', go: () => { this.clear(); this.setState({ screen: 'today', tab: 'today', trouble: null, receiptOpen: false, fixOpen: false }); } },
+        { label: 'Setup', go: () => { this.clear(); this.setState({ screen: 'setup', trouble: null, receiptOpen: false, fixOpen: false }); } },
+        { label: 'Interview', go: this.begin },
+        { label: 'Review', go: () => { this.clear(); const a = {}; Q.forEach(q => { a[q.name] = q.display; }); this.setState({ answers: a, screen: 'review', trouble: null, fixOpen: false, receiptOpen: false }); } },
+        { label: 'Saved to office', go: () => this.setState({ screen: 'done', saved: 'remote', trouble: null, fixOpen: false, receiptOpen: false }) },
+        { label: 'Saved on phone only', go: () => this.setState({ screen: 'done', saved: 'local', trouble: null, fixOpen: false, receiptOpen: false }) },
+        { label: 'Mic blocked', go: () => this.setState({ trouble: 'mic', receiptOpen: false, fixOpen: false }) },
+        { label: 'No signal', go: () => this.setState({ trouble: 'net', receiptOpen: false, fixOpen: false }) },
+        { label: 'Agent stalled', go: () => this.setState({ trouble: 'stalled', receiptOpen: false, fixOpen: false }) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
