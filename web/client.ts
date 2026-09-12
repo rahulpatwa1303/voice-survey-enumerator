@@ -276,6 +276,11 @@ function holdOff(e: Event): void {
 const STORE_KEY = 'lateshift.interview';
 const SCREENS: View[] = ['setup', 'interview', 'review', 'done'];
 
+/** True while the agent session is still open, so returning to the interview works. */
+function sessionLive(): boolean {
+  return !!ws && ws.readyState === WebSocket.OPEN && !finishing;
+}
+
 function persist(): void {
   try {
     sessionStorage.setItem(STORE_KEY, JSON.stringify({
@@ -315,20 +320,25 @@ function restore(): void {
     S.receiptText = saved.receiptText || ''; S.record = saved.record ?? null;
   }
 
-  const want = urlScreen || (saved && saved.screen) || 'setup';
   const answered = Object.keys(S.answers).length;
+  const savedScreen: View | null = saved && SCREENS.indexOf(saved.screen) !== -1 ? saved.screen : null;
 
-  if (want === 'done' && S.receipt) { go('done', true); return; }
+  // The URL normally decides. But a bare '#/setup' must not throw away work: it is
+  // also what a previous failed restore leaves behind, so saved answers win there.
+  let want: View = urlScreen || savedScreen || 'setup';
+  if (want === 'setup' && answered) want = savedScreen && savedScreen !== 'setup' ? savedScreen : 'review';
+
+  // A voice session cannot survive a reload: the socket, and the server's interview
+  // state with it, are gone. Keep the answers, be honest about the session.
   if (want === 'interview') {
-    // the voice session cannot be resumed after a reload
-    if (answered) {
-      S.notice = 'The page reloaded, so the voice session ended. The answers below were kept — check them and save, or start a new interview.';
-      go('review', true);
-    } else { go('setup', true); }
-    return;
+    if (!answered) { go('setup', true); return; }
+    S.notice = 'The page reloaded, so the voice session ended. The answers below were kept — check them and save, or start a new interview.';
+    want = 'review';
   }
-  if (want === 'review' && answered) { go('review', true); return; }
-  go('setup', true);
+
+  if (want === 'done' && !S.receipt) want = answered ? 'review' : 'setup';
+  if (want === 'review' && !answered) want = 'setup';
+  go(want, true);
 }
 
 function finish(): void { dropQueue(); go('review'); S.fixOpen = false; S.held = false; draw(); }
@@ -533,7 +543,7 @@ function reviewView(): string {
   return `
   <div class="screen">
     <div class="pad" style="border-bottom:2px solid var(--line2);padding-bottom:14px">
-      ${finishing ? '' : '<button class="small" data-act="to-interview" style="margin-bottom:10px">&larr; Back to questions</button>'}
+      ${sessionLive() ? '<button class="small" data-act="to-interview" style="margin-bottom:10px">&larr; Back to questions</button>' : ''}
       <h1 style="font-size:30px">Please check these</h1>
       ${S.notice ? `<p class="restored">${esc(S.notice)}</p>` : ''}
       <p style="margin:4px 0 0;font-size:17px;color:var(--muted)">Tap anything that is wrong.</p>
