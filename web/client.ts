@@ -74,6 +74,7 @@ const S = {
   answers: {} as Record<string, unknown>,
   display: {} as Record<string, string>,
   askedWith: {} as Record<string, string>,   // field -> the question as the agent actually said it
+  qlabel: {} as Record<string, string>,      // field -> the canonical question from the form
   order: [] as string[],
   correcting: null as { name: string; label: string } | null,
 
@@ -190,6 +191,7 @@ function handle(m: any): void {
       const name = String(m.name);
       S.answers = m.answers || S.answers;
       S.display[name] = m.display != null ? String(m.display) : String(m.value);
+      if (m.question) S.qlabel[name] = String(m.question);
       if (S.agentText && !S.askedWith[name]) S.askedWith[name] = S.agentText;
       if (S.order.indexOf(name) === -1) S.order.push(name);
       if (S.correcting && S.correcting.name === name) S.correcting = null;
@@ -237,7 +239,7 @@ function translate(msg: string): Trouble {
 async function start(): Promise<void> {
   try { await openAudio(); } catch { setTrouble(TROUBLE.mic); return; }
   finishing = false;
-  S.answers = {}; S.display = {}; S.askedWith = {}; S.order = [];
+  S.answers = {}; S.display = {}; S.askedWith = {}; S.qlabel = {}; S.order = [];
   S.agentText = ''; S.partial = ''; S.correcting = null; S.trouble = null;
   S.screen = 'interview'; S.phase = 'speaking';
   connect();
@@ -258,7 +260,7 @@ function holdOff(e: Event): void {
   paint();
 }
 
-function finish(): void { S.screen = 'review'; S.fixOpen = false; S.held = false; draw(); }
+function finish(): void { history.pushState({ ls: 'guard' }, ''); S.screen = 'review'; S.fixOpen = false; S.held = false; draw(); }
 
 function saveAll(): void { finishing = true; send({ type: 'end' }); S.phase = 'thinking'; draw(); }
 
@@ -272,7 +274,7 @@ function nextInterview(): void {
   if (ws) { try { ws.close(); } catch { /* already gone */ } ws = null; }
   closeAudio();
   S.screen = 'setup'; S.phase = 'idle'; S.trouble = null; S.receiptOpen = false; S.fixOpen = false;
-  S.answers = {}; S.display = {}; S.askedWith = {}; S.order = []; S.correcting = null;
+  S.answers = {}; S.display = {}; S.askedWith = {}; S.qlabel = {}; S.order = []; S.correcting = null;
   S.receipt = null; S.receiptText = ''; S.record = null;
   draw();
 }
@@ -331,7 +333,7 @@ function langNote(c: string): string {
 }
 function questionText(name: string): string {
   const q = form().questions.filter((x) => x.name === name)[0];
-  return S.askedWith[name] || (q && q.label) || 'Earlier answer';
+  return S.qlabel[name] || (q && q.label) || S.askedWith[name] || 'Earlier answer';
 }
 function total(): number {
   const qs = form().questions.length;
@@ -441,7 +443,7 @@ function interviewView(): string {
       </div>
       <div class="partial" id="partial" ${S.held && S.partial ? '' : 'hidden'}>“${esc(S.partial)}”</div>
       <div class="card" id="last" ${!S.held && lastName ? '' : 'hidden'}>
-        <div class="k">Written down · <span id="lastk">${esc(lastName ? questionText(lastName) : '')}</span></div>
+        <div class="k">Last answer · <span id="lastk">${esc(lastName ? questionText(lastName) : '')}</span></div>
         <div class="v" id="lastv">${esc(lastName ? S.display[lastName] : '')}</div>
       </div>
     </div>
@@ -460,6 +462,7 @@ function reviewView(): string {
   return `
   <div class="screen">
     <div class="pad" style="border-bottom:2px solid var(--line2);padding-bottom:14px">
+      ${finishing ? '' : '<button class="small" data-act="to-interview" style="margin-bottom:10px">&larr; Back to questions</button>'}
       <h1 style="font-size:30px">Please check these</h1>
       <p style="margin:4px 0 0;font-size:17px;color:var(--muted)">Tap anything that is wrong.</p>
     </div>
@@ -717,6 +720,7 @@ app.addEventListener('click', (e) => {
     case 'reconnect': S.trouble = null; connect(); break;
     case 'mic-retry': S.trouble = null; openAudio().catch(() => setTrouble(TROUBLE.mic)); break;
     case 'to-review': S.trouble = null; finish(); return;
+    case 'to-interview': S.screen = 'interview'; S.fixOpen = false; draw(); return;
     default: return;
   }
   draw();
@@ -729,7 +733,33 @@ fileInput.addEventListener('change', () => {
 });
 
 window.addEventListener('offline', () => { if (S.screen === 'interview') setTrouble(TROUBLE.net); });
-window.addEventListener('beforeunload', () => { send({ type: 'end' }); });
+/** True while answers exist that have not been saved yet. */
+function interviewInProgress(): boolean {
+  if (finishing || S.screen === 'setup' || S.screen === 'done') return false;
+  return S.screen === 'interview' || Object.keys(S.answers).length > 0;
+}
+
+// Warn before the tab is closed or navigated away mid-interview.
+window.addEventListener('beforeunload', (e) => {
+  if (!interviewInProgress()) { send({ type: 'end' }); return; }
+  e.preventDefault();
+  e.returnValue = '';          // required for the browser to show its own confirm dialog
+  return '';
+});
+// Actually ending: release the agent session (and stop billing) on real unload.
+window.addEventListener('pagehide', () => { send({ type: 'end' }); });
+
+// Browser/Android back: keep the interview, step back one screen instead of leaving.
+history.replaceState({ ls: 'root' }, '');
+window.addEventListener('popstate', () => {
+  if (!interviewInProgress()) return;
+  history.pushState({ ls: 'guard' }, '');   // stay on the page
+  if (S.receiptOpen) { S.receiptOpen = false; draw(); return; }
+  if (S.fixOpen) { S.fixOpen = false; draw(); return; }
+  if (S.uploadOpen) { S.uploadOpen = false; draw(); return; }
+  if (S.screen === 'review') { S.screen = 'interview'; draw(); return; }
+  if (S.screen === 'interview') { finish(); return; }   // to the review/check screen
+});
 
 fetch('/health').then((r) => r.json()).then((h) => { S.hasKey = !!h.hasKey; draw(); }).catch(() => draw());
 

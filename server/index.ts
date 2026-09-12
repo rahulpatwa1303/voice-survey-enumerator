@@ -135,6 +135,13 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
   kobo!.on('error', (e) => { app.log.error(e); toBrowser({ type: 'error', message: 'agent connection error' }); });
   }
 
+  // The canonical question text from the form, so the UI never has to fall back to
+  // the agent's chatty phrasing when showing an answer back to the enumerator.
+  const questionLabel = (name: string) => {
+    const q = activeForm.questions.find((x) => x.name === name);
+    return q ? pickLabel(q.label, lang) : name;
+  };
+
   async function handleTool(ev: { call_id: string; name: string; arguments: any }) {
     toolCallAt = Date.now();
     let result: unknown;
@@ -143,11 +150,11 @@ app.get('/ws', { websocket: true }, (browser /* WebSocket */) => {
         result = iv.next();
       } else if (ev.name === 'record_answer') {
         const r = iv.record(ev.arguments?.name, ev.arguments?.value);
-        if (r.ok) { receipt.answered(r.name, r.value, r.display); toBrowser({ type: 'answer', name: r.name, value: r.value, display: r.display, answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        if (r.ok) { receipt.answered(r.name, r.value, r.display); toBrowser({ type: 'answer', name: r.name, question: questionLabel(r.name), value: r.value, display: r.display, answers: iv.answers }); result = { ...r, next: iv.next() }; }
         else { receipt.rejected(ev.arguments?.name, ev.arguments?.value, r.message); result = r; }
       } else if (ev.name === 'skip_question') {
         const r = iv.skip(ev.arguments?.name);
-        if (r.ok) { receipt.skippedQ(r.name); toBrowser({ type: 'answer', name: r.name, value: null, display: '(skipped)', answers: iv.answers }); result = { ...r, next: iv.next() }; }
+        if (r.ok) { receipt.skippedQ(r.name); toBrowser({ type: 'answer', name: r.name, question: questionLabel(r.name), value: null, display: '(skipped)', answers: iv.answers }); result = { ...r, next: iv.next() }; }
         else result = r;
       } else if (ev.name === 'finish') {
         const f = iv.finish();
