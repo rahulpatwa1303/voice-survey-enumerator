@@ -45,7 +45,9 @@
   .big[disabled] { background: var(--line); color: var(--quiet); }
   .ghost { width: 100%; min-height: 68px; border: 3px solid var(--ink); border-radius: 18px; background: transparent; font-size: 20px; font-weight: 700; }
   .quietbtn { width: 100%; min-height: 62px; border: none; border-radius: 16px; background: var(--line2); font-size: 19px; font-weight: 700; }
-  .small { min-height: 46px; min-width: 62px; padding: 0 12px; border: 2px solid var(--ink); border-radius: 12px; background: transparent; font-size: 16px; font-weight: 700; }
+  .small { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+           min-height: 46px; min-width: 62px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 12px;
+           background: transparent; font-size: 16px; font-weight: 700; line-height: 1; }
 
   /* ---- choice cards ---- */
   .choice { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 74px; text-align: left;
@@ -71,6 +73,8 @@
   .bar i { flex: 1; height: 10px; border-radius: 2px; background: var(--line); }
   .bar i.on { background: var(--ink); }
   .bar i.now { background: var(--amber); }
+  .restored { margin: 10px 0 0; padding: 10px 12px; font-size: 15px; line-height: 1.4;
+              background: var(--amber-bg); color: var(--amber-ink); border: 1px solid var(--amber); border-radius: 10px; }
   .stopsq { display: block; width: 15px; height: 15px; background: var(--ink); border-radius: 2px; }
 
   .state { height: 252px; flex: none; background: var(--ink); color: #fff;

@@ -84,7 +84,8 @@ const S = {
   saved: 'remote' as 'remote' | 'local',
   receipt: null as Receipt | null,
   receiptText: '',
-  record: null as unknown
+  record: null as unknown,
+  notice: ''                                  // shown on the check screen after a refresh
 };
 
 const app = document.getElementById('app') as HTMLElement;
@@ -174,11 +175,13 @@ function setTrouble(t: Trouble): void {
 function handle(m: any): void {
   switch (m.type) {
     case 'ready':
-      S.screen = 'interview'; S.phase = 'speaking'; break;
+      go('interview'); S.phase = 'speaking'; break;
     case 'phase':
       S.phase = m.phase as Phase; break;
     case 'audio':
-      play(m.data); break;
+      // only the interview screen has a voice; elsewhere the agent must be silent
+      if (S.screen === 'interview') play(m.data);
+      break;
     case 'interrupted':
       dropQueue(); break;
     case 'user_partial':
@@ -198,6 +201,7 @@ function handle(m: any): void {
       S.partial = '';
       // later questions may appear or disappear — never assume a fixed list
       S.order = S.order.filter((n) => n in S.answers);
+      persist();
       break;
     }
     case 'stalled':
@@ -209,7 +213,7 @@ function handle(m: any): void {
       S.receiptText = m.receiptText || '';
       S.record = m.record || null;
       S.saved = m.ok ? 'remote' : 'local';
-      S.screen = 'done'; S.phase = 'idle'; S.trouble = null;
+      go('done'); S.phase = 'idle'; S.trouble = null;
       closeAudio();
       break;
     case 'error':
@@ -241,7 +245,7 @@ async function start(): Promise<void> {
   finishing = false;
   S.answers = {}; S.display = {}; S.askedWith = {}; S.qlabel = {}; S.order = [];
   S.agentText = ''; S.partial = ''; S.correcting = null; S.trouble = null;
-  S.screen = 'interview'; S.phase = 'speaking';
+  go('interview'); S.phase = 'speaking';
   connect();
   draw();
 }
@@ -260,20 +264,87 @@ function holdOff(e: Event): void {
   paint();
 }
 
-function finish(): void { history.pushState({ ls: 'guard' }, ''); S.screen = 'review'; S.fixOpen = false; S.held = false; draw(); }
+
+/* ---------------------------------------------------------------------------
+   URL routing + crash-safe state.
+   The screen lives in the URL so refresh and browser back behave normally.
+   Answers are mirrored into sessionStorage so a refresh never loses data.
+   A live voice session cannot survive a reload (the socket, and the server's
+   interview state with it, are gone), so a mid-interview refresh lands on the
+   check screen with the answers intact rather than pretending otherwise.
+--------------------------------------------------------------------------- */
+const STORE_KEY = 'lateshift.interview';
+const SCREENS: View[] = ['setup', 'interview', 'review', 'done'];
+
+function persist(): void {
+  try {
+    sessionStorage.setItem(STORE_KEY, JSON.stringify({
+      screen: S.screen, answers: S.answers, display: S.display, qlabel: S.qlabel,
+      askedWith: S.askedWith, order: S.order, lang: S.lang, usingUpload: S.usingUpload,
+      uploaded: S.uploaded, saved: S.saved, receipt: S.receipt, receiptText: S.receiptText,
+      record: S.record
+    }));
+  } catch { /* private mode: routing still works, persistence does not */ }
+}
+
+function go(screen: View, replace = false): void {
+  S.screen = screen;
+  const url = '#/' + screen;
+  if (replace || location.hash === url) history.replaceState({ ls: screen }, '', url);
+  else history.pushState({ ls: screen }, '', url);
+  persist();
+}
+
+function screenFromUrl(): View | null {
+  const h = location.hash.replace(/^#\/?/, '') as View;
+  return SCREENS.indexOf(h) !== -1 ? h : null;
+}
+
+function restore(): void {
+  let saved: any = null;
+  try { saved = JSON.parse(sessionStorage.getItem(STORE_KEY) || 'null'); } catch { /* ignore */ }
+  const urlScreen = screenFromUrl();
+  if (!saved && !urlScreen) { go('setup', true); return; }
+
+  if (saved) {
+    S.answers = saved.answers || {}; S.display = saved.display || {};
+    S.qlabel = saved.qlabel || {}; S.askedWith = saved.askedWith || {};
+    S.order = saved.order || []; S.lang = saved.lang || S.lang;
+    S.usingUpload = !!saved.usingUpload; S.uploaded = saved.uploaded || null;
+    S.saved = saved.saved || 'remote'; S.receipt = saved.receipt || null;
+    S.receiptText = saved.receiptText || ''; S.record = saved.record ?? null;
+  }
+
+  const want = urlScreen || (saved && saved.screen) || 'setup';
+  const answered = Object.keys(S.answers).length;
+
+  if (want === 'done' && S.receipt) { go('done', true); return; }
+  if (want === 'interview') {
+    // the voice session cannot be resumed after a reload
+    if (answered) {
+      S.notice = 'The page reloaded, so the voice session ended. The answers below were kept — check them and save, or start a new interview.';
+      go('review', true);
+    } else { go('setup', true); }
+    return;
+  }
+  if (want === 'review' && answered) { go('review', true); return; }
+  go('setup', true);
+}
+
+function finish(): void { dropQueue(); go('review'); S.fixOpen = false; S.held = false; draw(); }
 
 function saveAll(): void { finishing = true; send({ type: 'end' }); S.phase = 'thinking'; draw(); }
 
 function correct(name: string): void {
   S.correcting = { name, label: questionText(name) };
-  S.fixOpen = false; S.screen = 'interview';
+  S.fixOpen = false; go('interview');
   draw();
 }
 
 function nextInterview(): void {
   if (ws) { try { ws.close(); } catch { /* already gone */ } ws = null; }
   closeAudio();
-  S.screen = 'setup'; S.phase = 'idle'; S.trouble = null; S.receiptOpen = false; S.fixOpen = false;
+  S.notice = ''; go('setup'); S.phase = 'idle'; S.trouble = null; S.receiptOpen = false; S.fixOpen = false;
   S.answers = {}; S.display = {}; S.askedWith = {}; S.qlabel = {}; S.order = []; S.correcting = null;
   S.receipt = null; S.receiptText = ''; S.record = null;
   draw();
@@ -464,6 +535,7 @@ function reviewView(): string {
     <div class="pad" style="border-bottom:2px solid var(--line2);padding-bottom:14px">
       ${finishing ? '' : '<button class="small" data-act="to-interview" style="margin-bottom:10px">&larr; Back to questions</button>'}
       <h1 style="font-size:30px">Please check these</h1>
+      ${S.notice ? `<p class="restored">${esc(S.notice)}</p>` : ''}
       <p style="margin:4px 0 0;font-size:17px;color:var(--muted)">Tap anything that is wrong.</p>
     </div>
     <div class="scroll" style="gap:8px;padding-top:8px">
@@ -720,7 +792,7 @@ app.addEventListener('click', (e) => {
     case 'reconnect': S.trouble = null; connect(); break;
     case 'mic-retry': S.trouble = null; openAudio().catch(() => setTrouble(TROUBLE.mic)); break;
     case 'to-review': S.trouble = null; finish(); return;
-    case 'to-interview': S.screen = 'interview'; S.fixOpen = false; draw(); return;
+    case 'to-interview': go('interview'); S.fixOpen = false; draw(); return;
     default: return;
   }
   draw();
@@ -749,18 +821,24 @@ window.addEventListener('beforeunload', (e) => {
 // Actually ending: release the agent session (and stop billing) on real unload.
 window.addEventListener('pagehide', () => { send({ type: 'end' }); });
 
-// Browser/Android back: keep the interview, step back one screen instead of leaving.
-history.replaceState({ ls: 'root' }, '');
+// Browser / Android back: sheets close first, then follow the URL. Backing out of
+// an interview that has answers goes to the check screen, never silently to setup.
 window.addEventListener('popstate', () => {
-  if (!interviewInProgress()) return;
-  history.pushState({ ls: 'guard' }, '');   // stay on the page
   if (S.receiptOpen) { S.receiptOpen = false; draw(); return; }
   if (S.fixOpen) { S.fixOpen = false; draw(); return; }
   if (S.uploadOpen) { S.uploadOpen = false; draw(); return; }
-  if (S.screen === 'review') { S.screen = 'interview'; draw(); return; }
-  if (S.screen === 'interview') { finish(); return; }   // to the review/check screen
+
+  const target = screenFromUrl() || 'setup';
+  const answered = Object.keys(S.answers).length > 0;
+
+  if (target === 'setup' && answered && !finishing) { dropQueue(); go('review', true); draw(); return; }
+  if (target !== 'interview') dropQueue();   // the agent must not keep talking off-screen
+  S.screen = target;
+  persist();
+  draw();
 });
 
 fetch('/health').then((r) => r.json()).then((h) => { S.hasKey = !!h.hasKey; draw(); }).catch(() => draw());
 
+restore();
 draw();
