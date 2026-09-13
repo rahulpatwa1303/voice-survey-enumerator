@@ -3,6 +3,9 @@ import { existsSync } from 'node:fs';
 if (existsSync(new URL('../.env', import.meta.url))) process.loadEnvFile(new URL('../.env', import.meta.url));
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
+import fastifyStatic from '@fastify/static';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import WebSocket from 'ws';
 import { demoForm, ensureConsent, pickLabel, type FormDefinition, type Lang } from './form/definition.js';
 import { Interview } from './form/interview.js';
@@ -23,6 +26,21 @@ const pretty = process.env.NODE_ENV !== 'production';
 const app = Fastify({ logger: pretty ? { transport: { target: 'pino-pretty' } } : true });
 await app.register(websocket);
 app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
+
+// In production one process serves the built front end and the WebSocket on the
+// same origin, so the platform only has to expose a single port.
+const distDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+if (existsSync(distDir)) {
+  await app.register(fastifyStatic, { root: distDir, index: ['index.html'] });
+  // client-side routing: anything that is not a file or an API path gets the app
+  app.setNotFoundHandler((req, reply) => {
+    if (req.raw.url && (req.raw.url.startsWith('/ws') || req.raw.url.startsWith('/upload') || req.raw.url.startsWith('/health'))) {
+      return reply.code(404).send({ error: 'not found' });
+    }
+    return reply.sendFile('index.html');
+  });
+  app.log.info('serving built client from ' + distDir);
+}
 
 app.get('/health', async () => ({ ok: true, hasKey: !!AAI_KEY }));
 
