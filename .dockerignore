@@ -5,5 +5,4 @@ dist
 .env.example
 docs/design
 scripts
-web
 *.md
