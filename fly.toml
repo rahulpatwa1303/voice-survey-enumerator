@@ -1,5 +1,5 @@
 # fly launch --no-deploy will rewrite app/primary_region; the rest is what matters.
-app = "late-shift-voice-survey"
+app = "voice-survey-enumerator"
 primary_region = "bom"
 
 [build]

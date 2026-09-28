@@ -1,10 +1,10 @@
-# Deploying Late Shift
+# Deploying Voice Survey Enumerator
 
 One container serves the built client and the WebSocket on a single port, so any
 platform that can run a Dockerfile and pass through WebSockets will do.
 
 **HTTPS is not optional.** The browser only grants microphone access on a secure
-origin, so the app is useless over plain HTTP. Both options below terminate TLS
+origin, so the app is useless over plain HTTP. All options below terminate TLS
 for you.
 
 ---
@@ -13,7 +13,7 @@ for you.
 
 | Thing | Why |
 |---|---|
-| A Fly.io or Railway account | somewhere to run it |
+| A Render account (free), or Fly.io / Railway | somewhere to run it |
 | `ASSEMBLYAI_API_KEY` | the voice agent |
 | `KOBO_TOKEN`, `KOBO_ASSET_UID` | optional — without them interviews still run and hand back the record for download, they just do not submit to Kobo |
 
@@ -22,7 +22,23 @@ platform secrets instead.
 
 ---
 
-## Option A — Fly.io (recommended)
+## Option A — Render (free, recommended)
+
+`render.yaml` is in the repo, so Render reads the whole setup from it.
+
+1. render.com → **New → Blueprint** → connect the GitHub repo
+   `rahulpatwa1303/voice-survey-enumerator`.
+2. Render reads `render.yaml` (Docker, free plan, Singapore) and asks for
+   `ASSEMBLYAI_API_KEY`, `KOBO_TOKEN` and `KOBO_ASSET_UID`. Paste them in.
+3. **Apply.** The first build takes a few minutes; the URL is
+   `https://voice-survey-enumerator.onrender.com` (or similar).
+
+Render injects `PORT` itself — do not set it. Every push to `master` redeploys.
+
+Free-tier catch: the service **sleeps after 15 minutes idle** and the next visit
+waits 30–60 s for it to wake. Open the page once before a demo or recording.
+
+## Option B — Fly.io (paid; no free tier for new accounts)
 
 `fly.toml` is already in the repo. Fly builds the image remotely, so a local
 Docker daemon is not needed.
@@ -50,7 +66,7 @@ Notes on what is already configured:
   you will demo; every turn of the conversation crosses this link, so region
   choice is audible.
 
-## Option B — Railway
+## Option C — Railway (trial credit only)
 
 ```bash
 railway login
@@ -82,12 +98,12 @@ The build succeeding does not mean the app works. In order:
 
 ## Things that will bite
 
-- **WebSockets.** The app is useless without them. Both platforms above support
+- **WebSockets.** The app is useless without them. All platforms above support
   them; a CDN or proxy in front that buffers or strips upgrades will break the
   conversation with no obvious error.
 - **Idle cost.** Sessions bill per minute of active audio. Always press Stop
   rather than closing the tab; the server also ends the session on `pagehide`.
-- **Cold starts.** With `auto_stop_machines`, the first visit after a quiet
+- **Cold starts.** On Render free (and Fly with `auto_stop_machines`), the first visit after a quiet
   period waits for a boot. Warm it before a demo by loading the page once.
 - **Region.** Latency is the whole product experience here. Deploy near the demo.
 

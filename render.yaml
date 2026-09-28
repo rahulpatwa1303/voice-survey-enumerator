@@ -1,0 +1,19 @@
+# Render Blueprint — free web service built from the Dockerfile.
+# Render injects PORT itself; the server reads it, so it is not set here.
+services:
+  - type: web
+    name: voice-survey-enumerator
+    runtime: docker
+    plan: free
+    region: singapore        # closest free region to India; latency is audible
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Secrets: Render prompts for these on first deploy (sync: false keeps them out of git).
+      - key: ASSEMBLYAI_API_KEY
+        sync: false
+      - key: KOBO_TOKEN
+        sync: false
+      - key: KOBO_ASSET_UID
+        sync: false
